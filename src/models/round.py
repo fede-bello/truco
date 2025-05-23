@@ -1,7 +1,8 @@
 from models.deck import Deck
 from models.player import Player
 from models.card import Card
-class Mano:
+
+class Round:
     def __init__(self, players: list[Player]):
         self.players = players
         self.deck = Deck()
@@ -14,9 +15,6 @@ class Mano:
         
         self.muestra = self.deck.draw(1)[0]
 
-        for player in self.players:
-            print(player.hand)
-        print(self.muestra)
     def play_card(self, player: Player, card: Card):
         player.play_card(card)
 

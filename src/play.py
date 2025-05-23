@@ -1,13 +1,13 @@
 # %%
 from models.deck import Deck
 from models.player import Player
-from models.mano import Mano
+from models.round import Round
 def play():
     players = [Player("Player 1"), Player("Player 2"), Player("Player 3"), Player("Player 4")]
-    mano = Mano(players)
-    print(mano.deck)
-    mano.deal_cards()
-    print(mano.deck)
+    round = Round(players)
+    print(round.deck)
+    round.deal_cards()
+    print(round.deck)
 
 play()
 # %%
