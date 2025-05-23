@@ -6,7 +6,7 @@ class Player:
     
     Attributes:
         name (str): The name of the player.
-        hand (List[Card]): The cards in the player's hand.
+        cards (List[Card]): The cards in the player's hand.
     """
     def __init__(self, name: str):
         """
@@ -16,7 +16,7 @@ class Player:
             name (str): The name of the player.
         """
         self.name = name
-        self.hand: list[Card] = []
+        self.cards: list[Card] = []
 
     def __str__(self) -> str:
         """
@@ -46,24 +46,25 @@ class Player:
         Raises:
             ValueError: If the player already has 3 cards or if the card is already in hand.
         """
-        if card not in self.hand:
-            if len(self.hand) >= 3:
+        if card not in self.cards:
+            if len(self.cards) >= 3:
                 raise ValueError("Player can't have more than 3 cards")
-            self.hand.append(card)
+            self.cards.append(card)
         else:
             raise ValueError(f"Card {card} already in hand")
 
-    def play_card(self, card: Card) -> None:
+    def play_card(self, card_index: int) -> None:
         """
         Play a card from the player's hand.
         
         Args:
-            card (Card): The card to play.
+            card_index (int): The index of the card to play.
             
         Raises:
             ValueError: If the card is not in the player's hand.
         """
-        if card in self.hand:  
-            self.hand.remove(card)
-        else:
-            raise ValueError(f"Card {card} not in hand")
+        # TODO: Check how to properly implement this
+        if not self.cards:
+            raise ValueError("No cards in hand")
+        card = self.cards.pop(card_index)
+        return card

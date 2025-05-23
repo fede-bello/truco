@@ -1,4 +1,4 @@
-from constants import CardSuit, CARD_NUMBERS
+from constants import CardSuit, CardNumber
 from models.card import Card
 import random
 from typing import List
@@ -14,7 +14,7 @@ class Deck:
         """
         Initialize a deck with all possible cards.
         """
-        self.cards: List[Card] = [Card(number, suit) for number in CARD_NUMBERS.__args__ for suit in CardSuit]
+        self.cards: List[Card] = [Card(number, suit) for number in CardNumber.__args__ for suit in CardSuit.__args__]
 
     def __str__(self) -> str:
         """

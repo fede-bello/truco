@@ -1,13 +1,12 @@
 # %%
-from models.deck import Deck
 from models.player import Player
-from models.round import Round
+from models.game import Game
+
 def play():
-    players = [Player("Player 1"), Player("Player 2"), Player("Player 3"), Player("Player 4")]
-    round = Round(players)
-    print(round.deck)
-    round.deal_cards()
-    print(round.deck)
+    team1 = [Player("Player 1")]
+    team2 = [Player("Player 3")]
+    game = Game(team1, team2)
+    game.play_hand()
 
 play()
 # %%
