@@ -1,7 +1,7 @@
 from typing import Literal
 from enum import Enum
 
-CARD_NUMBERS = Literal[1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
+CARD_NUMBERS = Literal[4, 5, 6, 7, 10, 11, 12, 1, 2, 3]
 
 class CardSuit(Enum):
     BASTO = "basto"
