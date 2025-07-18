@@ -1,18 +1,21 @@
 from models.player import Player
 from models.round import Round
 
+
 class Game:
-    def __init__(self, player1: Player, player2: Player):
-        if player1 == player2:
-            raise ValueError("Players must be different")
-        
-        self.players = [player1, player2]
+    def __init__(self, player_1: Player, player_2: Player) -> None:
+        if player_1 == player_2:
+            msg = "Players must be different"
+            raise ValueError(msg)
+
+        self.player_1 = player_1
+        self.player_2 = player_2
 
         self.team1_score = 0
         self.team2_score = 0
 
-    def play_round(self):
-        round = Round(self.player1, self.player2)
-        round.deal_cards()
-        round.play_round()
-
+    def play_round(self) -> None:
+        """Play a round of the game."""
+        game_round = Round(self.player_1, self.player_2)
+        game_round.deal_cards()
+        game_round.play_round()

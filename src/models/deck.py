@@ -1,49 +1,39 @@
-from constants import CardSuit, CardNumber
-from models.card import Card
 import random
-from typing import List
+
+from constants import CardNumber, CardSuit
+from models.card import Card
+
 
 class Deck:
-    """
-    Represents a deck of cards for the card game.
-    
+    """Represents a deck of cards for the card game.
+
     Attributes:
         cards (List[Card]): The cards in the deck.
     """
-    def __init__(self):
-        """
-        Initialize a deck with all possible cards.
-        """
-        self.cards: List[Card] = [Card(number, suit) for number in CardNumber.__args__ for suit in CardSuit.__args__]
+
+    def __init__(self) -> None:
+        """Initialize a deck with all possible cards."""
+        self.cards: list[Card] = [
+            Card(number, suit) for number in CardNumber.__args__ for suit in CardSuit.__args__
+        ]
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the deck.
-        
-        Returns:
-            str: A string showing the number of cards in the deck.
-        """
+        """Return a string representation of the deck."""
         return f"Deck of {len(self.cards)} cards"
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the deck for debugging.
-        
-        Returns:
-            str: A string showing the number of cards in the deck.
-        """
+        """Return a string representation of the deck for debugging."""
         return f"Deck of {len(self.cards)} cards"
-    
-    def draw(self, n: int) -> List[Card]:
-        """
-        Draw n random cards from the deck.
-        
+
+    def draw(self, n: int) -> list[Card]:
+        """Draw n random cards from the deck.
+
         Args:
             n (int): The number of cards to draw.
-            
+
         Returns:
-            List[Card]: The drawn cards.
-            
+            list[Card]: The drawn cards.
+
         Raises:
             ValueError: If trying to draw more cards than available in the deck.
         """
