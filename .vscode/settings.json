@@ -7,7 +7,7 @@
   // Python analysis settings
   //
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/agent"
+    "${workspaceFolder}/src"
   ],
   //
   // Hide .venv from explorer and searchbar

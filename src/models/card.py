@@ -1,4 +1,4 @@
-from constants import CardNumber, CardSuit
+from schemas.constants import CardNumber, CardSuit
 
 
 class Card:
