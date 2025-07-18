@@ -17,5 +17,6 @@ class Game:
     def play_round(self) -> None:
         """Play a round of the game."""
         game_round = Round(self.player_1, self.player_2)
-        game_round.deal_cards()
-        game_round.play_round()
+        team_1_points, team_2_points = game_round.play_round()
+        self.team1_score += team_1_points
+        self.team2_score += team_2_points

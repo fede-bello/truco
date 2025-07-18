@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from logging_config import get_logger
 from models.deck import Deck
 from models.hand import Hand
 from models.player import Player
@@ -8,6 +9,10 @@ from schemas.hand_info import RoundInfo
 
 if TYPE_CHECKING:
     from models.card import Card
+
+logger = get_logger(__name__)
+
+HANDS_TO_WIN_ROUND = CARDS_DEALT_PER_PLAYER // 2 + 1
 
 
 class Round:
@@ -30,10 +35,12 @@ class Round:
         self.player_1 = player_1
         self.player_2 = player_2
         self.deck = Deck()
-        self.muestra: Card | None = None
+
+        self._deal_cards()
+        self.muestra: Card
         self.round_info: RoundInfo = RoundInfo()
 
-    def deal_cards(self) -> None:
+    def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
 
         This method draws CARDS_DEALT_PER_PLAYER cards for each player and assigns them directly
@@ -44,11 +51,40 @@ class Round:
 
         self.muestra = self.deck.draw(1)[0]
 
-    def play_round(self) -> None:
+    def play_round(self) -> tuple[int, int]:
         """Play a round of the game.
 
-        This method plays a round of the game, which consists of 3 hands.
+        This method plays hands until one player wins 2 hands.
+        If there's a tie, the first player to win the next hand wins the round.
+
+        Returns:
+            tuple[int, int]: The points for each team (team_1_points, team_2_points).
         """
+        logger.info("Playing round")
+        logger.info("Muestra is: %s", self.muestra)
         hand = Hand(self.player_1, self.player_2)
+        player_1_wins = 0
+        player_2_wins = 0
+
         for _ in range(CARDS_DEALT_PER_PLAYER):
-            hand.play_hand()
+            hand_result = hand.play_hand(self.muestra)
+            player_1_wins += hand_result[0]
+            player_2_wins += hand_result[1]
+
+            if player_1_wins == HANDS_TO_WIN_ROUND and player_2_wins == HANDS_TO_WIN_ROUND:
+                continue
+
+            if HANDS_TO_WIN_ROUND in (player_1_wins, player_2_wins):
+                # if one of the players has won the round, break
+                break
+
+        if player_1_wins > player_2_wins:
+            logger.info("Player 1 wins the round")
+            return 1, 0
+        elif player_2_wins > player_1_wins:
+            logger.info("Player 2 wins the round")
+            return 0, 1
+        else:
+            # rare case where there are three ties, the "hand" wins
+            logger.info("All tied, the hand wins")
+            return 1, 0
