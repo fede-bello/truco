@@ -2,6 +2,8 @@ from models.player import Player
 from models.card import Card
 class Hand:
     def __init__(self, team1: list[Player], team2: list[Player]):
+        self.team1 = team1
+        self.team2 = team2
 
     def _choose_card(self, player: Player) -> Card:
         for i, card in enumerate(player.cards):
