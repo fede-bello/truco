@@ -17,6 +17,7 @@ class Player:
         """
         self.name = name
         self.cards: list[Card] = []
+        self.played_cards: list[Card] = []
 
     def __str__(self) -> str:
         """
@@ -67,4 +68,5 @@ class Player:
         if not self.cards:
             raise ValueError("No cards in hand")
         card = self.cards.pop(card_index)
+        self.played_cards.append(card)
         return card
