@@ -1,0 +1,123 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# Rule: Repository Structure
+
+This repository is organized around models corresponding to the main entities and logic in Truco Uruguayo. The following sections describe each core component.
+
+## Models
+
+### 1. Card
+
+- **Purpose:** Represents a single card with Truco-specific hierarchy.
+- **Fields:**
+  - `number` – The value/face of the card (1-7, 10) as per Spanish deck.
+  - `suit` – The suit of the card (oro, copa, espadas, basto).
+- **Key Features:**
+  - Implements comparison operators using Truco card hierarchy (4 < 5 < 6 < 7 < 10 < 1 < 2 < 3).
+  - Proper string representation for debugging and display.
+
+### 2. Deck
+
+- **Purpose:** Represents the deck of cards and manages its state.
+- **Responsibilities:**
+  - Contains all `Card` objects (40 cards total: 10 numbers × 4 suits).
+  - Deals cards to players using `draw(n)` method.
+  - Tracks which cards are in play, have been dealt, or are still in the deck.
+- **Key Features:**
+  - Removes cards from deck when drawn to prevent duplicates.
+  - Uses random sampling for card distribution.
+
+### 3. Player
+
+- **Purpose:** Represents an individual player in the game.
+- **Key Features:**
+  - Holds a collection of cards (`cards` - current hand).
+  - Tracks played cards (`played_cards` - cards played in current round).
+  - Enforces 3-card hand limit per player.
+  - Has `add_card()` and `play_card()` methods for card management.
+- **Additional Features:** Player name for identification.
+
+### 4. Hand
+
+- **Purpose:** Represents a single set of plays where each player from both teams throws a card.
+- **Context:**
+  - Manages one hand of play between teams.
+  - Determines the winning team and player for each hand.
+  - Handles interactive card selection (currently uses console input).
+
+### 5. Round
+
+- **Purpose:** Represents a sequence of hands (typically three, encompassing Truco's structure).
+- **Context:**
+  - Manages two teams of players.
+  - Handles card dealing (3 cards per player).
+  - Sets the `muestra` card (trump indicator) after dealing.
+  - Tracks round-specific information using `RoundInfo` schema.
+- **Key Features:**
+  - Team-based gameplay (team1 vs team2).
+  - Trump card system via `muestra`.
+
+### 6. Game
+
+- **Purpose:** Represents the full game logic and manages overall game state.
+- **Responsibilities:**
+  - Manages players and teams.
+  - Keeps track of the total points for each team.
+  - Coordinates the flow between rounds.
+  - Determines when the game ends based on the winning condition.
+- **Key Features:**
+  - Score tracking for both teams.
+  - Game state management.
+
+## Additional Components
+
+### 7. Constants
+
+- **Purpose:** Defines type hints and constants for the game.
+- **Contents:**
+  - `CardSuit` – Literal type for card suits (basto, espadas, oro, copa).
+  - `CardNumber` – Literal type for card numbers (1, 2, 3, 4, 5, 6, 7, 10).
+
+### 8. Schemas
+
+- **Purpose:** Provides data validation and type safety for complex game state.
+- **Contents:**
+  - `RoundInfo` – TypedDict for tracking round-specific information.
+  - `TeamInfo` – TypedDict for team-specific data (points, etc.).
+
+---
+
+## Actual Repository Structure
+
+```plaintext
+src/
+  models/
+    card.py          # Card model with Truco hierarchy
+    deck.py          # Deck logic and card dealing
+    player.py        # Player model with hand management
+    hand.py          # Hand (single play round for all players)
+    round.py         # Series of hands with team management
+    game.py          # Overall game logic and scoring
+  schemas/
+    hand_info.py     # Data validation schemas (RoundInfo, TeamInfo)
+  constants.py       # Type definitions and game constants
+  play.py           # Main game execution script
+```
+
+## Key Implementation Notes
+
+1. **Team-Based Gameplay:** The game is designed around teams (team1 vs team2), not individual players.
+
+2. **Truco Card Hierarchy:** Cards follow Truco's specific order: 4 < 5 < 6 < 7 < 10 < 1 < 2 < 3.
+
+3. **Trump System:** Each round has a `muestra` card that determines the trump suit.
+
+4. **Type Safety:** Extensive use of type hints and literal types for card suits and numbers.
+
+5. **Interactive Elements:** Current implementation uses console input for card selection.
+
+6. **State Management:** Round and game state are tracked using TypedDict schemas.

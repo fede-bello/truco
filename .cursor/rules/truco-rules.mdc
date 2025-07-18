@@ -14,7 +14,7 @@ In this version of the game, it will be played by two players, one against the o
 
 ## Cards
 
-- Uses the Spanish 40-card deck.
+- Uses the Spanish 40-card deck, without the 8s and 9s.
 - Each player receives 3 cards per hand.
 - After dealing, one card is turned face up as the **Muestra** ("sample").
 - **Piezas**: The highest cards in the hand, defined (in this order) as the 2, 4, 5, Caballo (11), and Sota (10)of the suit matching the Muestra. If any of these is the Muestra, the Rey (12) of that suit becomes the Pieza.
