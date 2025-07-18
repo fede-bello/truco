@@ -1,7 +1,7 @@
 import random
 
-from constants import CardNumber, CardSuit
 from models.card import Card
+from schemas.constants import CardNumber, CardSuit
 
 
 class Deck:

@@ -1,5 +1,5 @@
-from constants import CARDS_DEALT_PER_PLAYER
 from models.card import Card
+from schemas.constants import CARDS_DEALT_PER_PLAYER
 
 
 class Player:

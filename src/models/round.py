@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from constants import CARDS_DEALT_PER_PLAYER
 from models.deck import Deck
 from models.hand import Hand
 from models.player import Player
+from schemas.constants import CARDS_DEALT_PER_PLAYER
 from schemas.hand_info import RoundInfo
 
 if TYPE_CHECKING:
