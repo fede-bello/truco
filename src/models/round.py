@@ -4,7 +4,7 @@ from models.deck import Deck
 from models.player import Player
 from schemas.constants import CARDS_DEALT_PER_PLAYER
 from schemas.hand_info import RoundInfo
-from schemas.round_state import RoundState
+from schemas.round_state import TRUCO_STATE, RoundState
 
 logger = get_logger(__name__)
 
@@ -37,6 +37,7 @@ class Round:
         self.round_info: RoundInfo = RoundInfo()
 
         self.round_state: RoundState = RoundState(truco_state="nada")
+        self.last_truco_bidder: Player | None = None
 
     def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
@@ -49,7 +50,51 @@ class Round:
 
         self.muestra = self.deck.draw(1)[0]
 
-    def _choose_card(self, player: Player) -> Card:
+    def _can_beat_truco(self, player: Player) -> bool:
+        """Check if a player can beat (advance) the truco state.
+
+        Args:
+            player (Player): The player who wants to beat truco.
+
+        Returns:
+            bool: True if the player can beat truco, False otherwise.
+        """
+        # Cannot advance beyond vale4
+        if self.round_state.truco_state == "vale4":
+            return False
+
+        # If no one has bid yet, anyone can start
+        if self.last_truco_bidder is None:
+            return True
+
+        # Only the other player can advance (alternating rule)
+        return player != self.last_truco_bidder
+
+    def _show_actions(self, player: Player) -> int:
+        """Show available actions for a player and return the truco option index.
+
+        Args:
+            player (Player): The player to show actions for.
+
+        Returns:
+            int: The index that would be used for the truco beat option.
+        """
+        # Show cards with their indices
+        for i, card in enumerate(player.cards):
+            logger.info("%s: %s", i, card)
+
+        # Show truco beat option if available
+        truco_option_index = len(player.cards)
+        if self._can_beat_truco(player):
+            current_state = self.round_state.truco_state
+            next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
+                current_state, current_state
+            )
+            logger.info("%s: Beat truco to %s", truco_option_index, next_state_name)
+
+        return truco_option_index
+
+    def _choose_action(self, player: Player) -> Card:
         """Choose a card to play from the player's hand.
 
         Args:
@@ -58,10 +103,17 @@ class Round:
         Returns:
             Card: The card chosen by the player.
         """
-        for i, card in enumerate(player.cards):
-            logger.info("%s: %s", i, card)
-        card_index = int(input(f"Choose a card to play for {player.name}: "))
-        return player.play_card(card_index)
+        truco_option_index = self._show_actions(player)
+
+        choice = int(input(f"Choose action for {player.name}: "))
+
+        # Check if player chose to beat truco
+        if choice == truco_option_index and self._can_beat_truco(player):
+            accepted_state = self._offer_truco_advance(player)
+            logger.info("Truco state after bidding: %s", accepted_state)
+            choice = int(input(f"Choose a card for {player.name}: "))
+
+        return player.play_card(choice)
 
     def _get_points_truco_state(self) -> int:
         """Get the points for the truco state.
@@ -78,6 +130,55 @@ class Round:
                 return 3
             case "vale4":
                 return 4
+
+    def _advance_truco_state(self) -> TRUCO_STATE:
+        """Advance the truco state."""
+        match self.round_state.truco_state:
+            case "nada":
+                self.round_state.truco_state = "truco"
+            case "truco":
+                self.round_state.truco_state = "retruco"
+            case "retruco":
+                self.round_state.truco_state = "vale4"
+            case "vale4":
+                msg = "Cannot advance truco state from vale4"
+                logger.error(msg)
+                raise ValueError(msg)
+
+        return self.round_state.truco_state
+
+    def _offer_truco_advance(self, offering_player: Player) -> TRUCO_STATE:
+        """One of the players offers to advance the truco state."""
+        if offering_player == self.player_1:
+            other_player = self.player_2
+        else:
+            other_player = self.player_1
+
+        # Get the other player's response to the truco offer
+        response = (
+            input(f"{other_player.name}, do you accept the truco advance? (1 - yes, 0 - no): ")
+            .lower()
+            .strip()
+        )
+
+        if response == "1":
+            new_state = self._advance_truco_state()
+            self.last_truco_bidder = offering_player
+            logger.info(
+                "%s beat truco to %s, accepted by %s",
+                offering_player.name,
+                new_state,
+                other_player.name,
+            )
+            return new_state
+        else:
+            logger.info(
+                "%s rejected truco beat by %s, %s wins the round",
+                other_player.name,
+                offering_player.name,
+                offering_player.name,
+            )
+            return self.round_state.truco_state
 
     def play_round(self) -> tuple[int, int]:
         """Play a round of the game.
@@ -113,8 +214,8 @@ class Round:
         Returns:
             tuple[int, int]: The points for each team (team_1_points, team_2_points).
         """
-        card_1 = self._choose_card(self.player_1)
-        card_2 = self._choose_card(self.player_2)
+        card_1 = self._choose_action(self.player_1)
+        card_2 = self._choose_action(self.player_2)
 
         logger.debug("Player 1 (%s) played: %s", self.player_1.name, card_1)
         logger.debug("Player 2 (%s) played: %s", self.player_2.name, card_2)
