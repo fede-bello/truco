@@ -36,7 +36,7 @@ class Round:
         self.muestra: Card
         self.round_info: RoundInfo = RoundInfo()
 
-        self.round_state: RoundState = RoundState(truco_state="nada")
+        self.round_state: RoundState = RoundState(truco_state="nada", cards_played_this_round={})
         self.last_truco_bidder: Player | None = None
 
     def _deal_cards(self) -> None:
@@ -118,7 +118,9 @@ class Round:
             else:
                 choice = int(input(f"Choose a card for {player.name}: "))
 
-        return player.play_card(choice)
+        card = player.play_card(choice)
+        self.round_state.cards_played_this_round[player] = card
+        return card
 
     def _get_points_truco_state(self) -> int:
         """Get the points for the truco state.
