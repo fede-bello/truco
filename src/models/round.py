@@ -4,6 +4,7 @@ from models.deck import Deck
 from models.player import Player
 from schemas.constants import CARDS_DEALT_PER_PLAYER
 from schemas.hand_info import RoundInfo
+from schemas.player_state import PlayerState
 from schemas.round_state import TRUCO_STATE, RoundState
 
 logger = get_logger(__name__)
@@ -259,3 +260,9 @@ class Round:
             # rare case where there are three ties, the "hand" wins
             logger.info("All tied, the hand wins")
             return truco_points, 0
+
+    def get_player_state(self, player: Player) -> PlayerState:
+        """Get the state of a player."""
+        round_state = self.round_state
+        player_cards = player.cards
+        return PlayerState(round_state=round_state, player_cards=player_cards)
