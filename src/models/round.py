@@ -94,7 +94,7 @@ class Round:
 
         return truco_option_index
 
-    def _choose_action(self, player: Player) -> Card:
+    def _choose_action(self, player: Player) -> Card | None:
         """Choose a card to play from the player's hand.
 
         Args:
@@ -109,9 +109,14 @@ class Round:
 
         # Check if player chose to beat truco
         if choice == truco_option_index and self._can_beat_truco(player):
+            old_truco_state = self.round_state.truco_state
             accepted_state = self._offer_truco_advance(player)
             logger.info("Truco state after bidding: %s", accepted_state)
-            choice = int(input(f"Choose a card for {player.name}: "))
+            if old_truco_state == accepted_state:
+                logger.info("Player %s wins the round", player.name)
+                return None
+            else:
+                choice = int(input(f"Choose a card for {player.name}: "))
 
         return player.play_card(choice)
 
@@ -215,7 +220,11 @@ class Round:
             tuple[int, int]: The points for each team (team_1_points, team_2_points).
         """
         card_1 = self._choose_action(self.player_1)
+        if card_1 is None:
+            return 2, 0
         card_2 = self._choose_action(self.player_2)
+        if card_2 is None:
+            return 0, 2
 
         logger.debug("Player 1 (%s) played: %s", self.player_1.name, card_1)
         logger.debug("Player 2 (%s) played: %s", self.player_2.name, card_2)
