@@ -3,17 +3,20 @@ description:
 globs:
 alwaysApply: true
 ---
+
 # Truco Uruguayo - Code Standards
 
 ## Python Development Standards
 
 ### Required Standards
+
 - **Python with Docstrings**: All functions, classes, and modules must have proper docstrings
 - **Python with Typing Always**: Full type hints for all function parameters, return types, and variables where helpful
 - **Google Docstring Standard**: Use Google's docstring format with Args, Returns, Raises sections
 - **Meaningful Comments Only**: Do not include unnecessary comments; only add comments when they provide genuine value for understanding complex logic
 
 ### Docstring Format Example
+
 ```python
 def example_function(param1: str, param2: int) -> bool:
     """Brief description of what the function does.
@@ -32,18 +35,23 @@ def example_function(param1: str, param2: int) -> bool:
 ```
 
 ### Type Hints Requirements
+
 - All function parameters must have type hints
 - All function return types must be specified
 - Use appropriate types from typing module when needed (List, Dict, Optional, Union, etc.)
 - Class attributes should have type hints when not obvious from context
 
 ### Code Quality
+
 - Follow PEP 8 style guidelines
 - Use meaningful variable and function names
 - Keep functions focused and single-purpose
 - Maintain consistency with existing codebase patterns
+- Extensive use of type hints and literal types for card suits and numbers
+- Round and game state are tracked using TypedDict schemas
 
 ### Documentation Requirements
+
 - Module-level docstrings for all Python files
 - Class docstrings explaining purpose and key attributes
 - Method docstrings following Google format

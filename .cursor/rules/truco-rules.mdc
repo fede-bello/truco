@@ -8,44 +8,36 @@ alwaysApply: true
 
 ## Overview
 
-Truco Uruguayo is a trick-taking card game, usually played by four players in two teams. The aim is to score points through **Truco**, **Envido**, and **Flor** to be the first to reach 40 points and win a "chico".
-
-In this version of the game, it will be played by two players, one against the other.
+Truco Uruguayo is a trick-taking card game, played by two players. The aim is to score points through **Truco** to be the first to reach 40 points.
 
 ## Cards
 
 - Uses the Spanish 40-card deck, without the 8s and 9s.
 - Each player receives 3 cards per hand.
 - After dealing, one card is turned face up as the **Muestra** ("sample").
-- **Piezas**: The highest cards in the hand, defined (in this order) as the 2, 4, 5, Caballo (11), and Sota (10)of the suit matching the Muestra. If any of these is the Muestra, the Rey (12) of that suit becomes the Pieza.
 
 ## Truco (Trick-taking phase)
 
 - A hand consists of 3 tricks (bazas), one card per trick.
-- First to win 2 tricks wins Truco.
-- If first 2 tricks decide the outcome, the third is not played.
-- A player may "irse al mazo" (fold) if they expect to lose.
+- Best out of 3 tricks wins the hand.
 - Trick winner leads the next trick.
-- **Tied Trick:** If both play cards of the same rank, the winner of the earliest trick wins. If all 3 tie, the hand (“mano”) wins.
+- **Tied Trick:** If both play cards of the same rank, the winner of the earliest trick wins. If all 3 tie, the hand wins.
 
 **Card Hierarchy**
 Order (assuming oros as Muestra):
 
 1. Piezas (2, 4, 5, Caballo (11), Sota (10) of Muestra suit)
-2. As de espadas
-3. As de bastos
-4. 7 de espadas
-5. 7 de oros
-6. Treses
-7. Doses (except pieza)
-8. Ases falsos
-9. Reyes
-10. Caballos (except pieza)
-11. Sotas (except pieza)
-12. Sietes falsos
-13. Seises
-14. Cincos (except pieza)
-15. Cuatros (except pieza)
+2. Matas (1 de espada, 1 de basto, 7 de espada, 7 de oro)
+3. Treses
+4. Doses (except pieza)
+5. Ases falsos
+6. Reyes
+7. Caballos (except pieza)
+8. Sotas (except pieza)
+9. Sietes falsos
+10. Seises
+11. Cincos (except pieza)
+12. Cuatros (except pieza)
 
 **Truco Bidding**
 
@@ -54,51 +46,6 @@ Order (assuming oros as Muestra):
 - **Retruco:** 3 points
 - **Vale 4:** 4 points
   Players can raise the bid; opponents may accept or fold (the points at the bid are awarded).
-
-## Envido
-
-- **Optional.** Called by a player before/after the first card is played, or in response to a Truco bid.
-- If any player calls "Flor" before an Envido is resolved, the Envido is canceled.
-- **Scoring Envido Value:**
-
-  - With a "pieza": Value of the pieza + highest of remaining two cards
-    - Piezas values: 2 = 30, 4 = 29, 5 = 28, Caballo = 27, Sota = 27
-  - With two cards of the same suit: Their sum + 20
-  - With three different suits: Highest single card
-  - Figures (Rey, Caballo, Sota, etc.) count as zero (except as Piezas).
-  - Example: Sota de Muestra + 4 de otro palo + As de otro palo → 27 + 1 = 28
-
-- **Ties:** Mano (first player) wins.
-- **Bids:**
-
-  - **Envido:** By default, 2 points (can be raised)
-  - **Envido la falta:** Enough to reach 40 points from leading team's total
-  - Bids can be raised; highest stands.
-  - If rejected, 1 point to opponent; otherwise, winner gets sum of bids.
-
-- After Envido resolves, players reveal their values without showing cards.
-
-## Flor
-
-- **Flor** occurs with:
-  - 2 or 3 Piezas
-  - or 1 Pieza + two cards same suit
-  - or 3 cards of same suit
-- Called on first play opportunity.
-- **Cancels** any Envido.
-- **Scoring:** 3 points for announcing Flor.
-  - If opponents also have Flor, both can bid **Con flor envido** or **Con flor envido la falta** (same style as Envido).
-  - Only the winner of Flor Envido scores.
-- **Flor Value Calculation:**
-  - Base of 20
-  - Piezas: (Pieza value in Envido) - 20: 2 = 10, 4 = 9, 5 = 8, Caballo = 7, Sota = 6
-  - Non-Piezas: face value (figures = 0 unless Pieza)
-  - Example: Pieza 2 + Pieza Sota + figure = 20 + 10 + 6 + 0 = 36
-
-## Modes
-
-- **Individual:** 2 players, first to 40 wins.
-- **Pairs:** 2 teams of 2 players, alternate seats.
 
 ## Winning
 
