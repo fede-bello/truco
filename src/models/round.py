@@ -1,3 +1,4 @@
+from exceptions.truco_rejected import TrucoRejectedError
 from logging_config import get_logger
 from models.card import Card
 from models.deck import Deck
@@ -10,6 +11,12 @@ from schemas.round_state import TRUCO_STATE, RoundState
 logger = get_logger(__name__)
 
 HANDS_TO_WIN_ROUND = CARDS_DEALT_PER_PLAYER // 2 + 1
+
+TRUCO_BID_OFFER_ACTION = 4
+TRUCO_BID_ACCEPT_ACTION = 5
+TRUCO_BID_REJECT_ACTION = 6
+
+TRUCO_ACTIONS = [TRUCO_BID_OFFER_ACTION, TRUCO_BID_ACCEPT_ACTION, TRUCO_BID_REJECT_ACTION]
 
 
 class Round:
@@ -39,6 +46,8 @@ class Round:
 
         self.round_state: RoundState = RoundState(truco_state="nada", cards_played_this_round={})
         self.last_truco_bidder: Player | None = None
+
+        self.truco_bid_offered: bool = False
 
     def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
@@ -71,7 +80,7 @@ class Round:
         # Only the other player can advance (alternating rule)
         return player != self.last_truco_bidder
 
-    def _show_actions(self, player: Player) -> int:
+    def _show_actions(self, player: Player) -> None:
         """Show available actions for a player and return the truco option index.
 
         Args:
@@ -80,48 +89,53 @@ class Round:
         Returns:
             int: The index that would be used for the truco beat option.
         """
+        if self.truco_bid_offered:
+            logger.info("Truco bid offered, player must accept or reject")
+            logger.info("%s: Accept truco", TRUCO_BID_ACCEPT_ACTION)
+            logger.info("%s: Reject truco", TRUCO_BID_REJECT_ACTION)
+            return
+
         # Show cards with their indices
         for i, card in enumerate(player.cards):
             logger.info("%s: %s", i, card)
 
-        # Show truco beat option if available
-        truco_option_index = len(player.cards)
         if self._can_beat_truco(player):
             current_state = self.round_state.truco_state
             next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
                 current_state, current_state
             )
-            logger.info("%s: Beat truco to %s", truco_option_index, next_state_name)
+            logger.info("%s: Beat truco to %s", TRUCO_BID_OFFER_ACTION, next_state_name)
 
-        return truco_option_index
-
-    def _choose_action(self, player: Player) -> Card | None:
-        """Choose a card to play from the player's hand.
+    def _choose_action(self, player: Player) -> Card | int:
+        """Choose an action for the player (play card or truco action).
 
         Args:
-            player (Player): The player to choose a card for.
+            player (Player): The player to choose an action for.
 
         Returns:
-            Card: The card chosen by the player.
+            Card | int: The card played or the truco action code.
         """
-        truco_option_index = self._show_actions(player)
+        self._show_actions(player)
 
-        choice = int(input(f"Choose action for {player.name}: "))
+        while True:
+            try:
+                choice = int(input(f"Choose action for {player.name}: "))
 
-        # Check if player chose to beat truco
-        if choice == truco_option_index and self._can_beat_truco(player):
-            old_truco_state = self.round_state.truco_state
-            accepted_state = self._offer_truco_advance(player)
-            logger.info("Truco state after bidding: %s", accepted_state)
-            if old_truco_state == accepted_state:
-                logger.info("Player %s wins the round", player.name)
-                return None
-            else:
-                choice = int(input(f"Choose a card for {player.name}: "))
+                if choice in TRUCO_ACTIONS:
+                    return choice
 
-        card = player.play_card(choice)
-        self.round_state.cards_played_this_round[player] = card
-        return card
+                # Validate card index
+                if 0 <= choice < len(player.cards):
+                    card = player.play_card(choice)
+                    self.round_state.cards_played_this_round[player] = card
+                    return card
+                else:
+                    logger.warning("Invalid card index. Please choose a valid card.")
+                    continue
+
+            except (ValueError, IndexError):
+                logger.warning("Invalid input. Please enter a number.")
+                continue
 
     def _get_points_truco_state(self) -> int:
         """Get the points for the truco state.
@@ -155,92 +169,187 @@ class Round:
 
         return self.round_state.truco_state
 
-    def _offer_truco_advance(self, offering_player: Player) -> TRUCO_STATE:
-        """One of the players offers to advance the truco state."""
-        if offering_player == self.player_1:
-            other_player = self.player_2
-        else:
-            other_player = self.player_1
+    def _play_hand(self, starting_player: Player) -> Player | None:
+        """Play a single hand between two players.
 
-        # Get the other player's response to the truco offer
-        response = (
-            input(f"{other_player.name}, do you accept the truco advance? (1 - yes, 0 - no): ")
-            .lower()
-            .strip()
+        Args:
+            starting_player (Player): The player who starts this hand.
+
+        Returns:
+            Player | None: The player who won the hand, or None if it's a tie.
+        """
+        other_player = self.player_2 if starting_player == self.player_1 else self.player_1
+
+        # First player plays
+        card_1 = self._handle_player_turn(starting_player)
+        if card_1 is None:
+            logger.error("Unexpected None card from first player")
+            return other_player
+
+        # Second player plays
+        card_2 = self._handle_player_turn(other_player)
+        if card_2 is None:
+            logger.error("Unexpected None card from second player")
+            return starting_player
+
+        # Compare cards to determine winner
+        if card_1.is_greater_than(card_2, self.muestra):
+            logger.info("%s wins hand with %s vs %s", starting_player.name, card_1, card_2)
+            return starting_player
+        elif card_2.is_greater_than(card_1, self.muestra):
+            logger.info("%s wins hand with %s vs %s", other_player.name, card_2, card_1)
+            return other_player
+        else:
+            logger.info("Hand tied with %s vs %s", card_1, card_2)
+            return None  # Tie
+
+    def _handle_player_turn(self, player: Player) -> Card | None:
+        """Handle a player's turn, which may include truco bidding.
+
+        Args:
+            player (Player): The player whose turn it is.
+
+        Returns:
+            Card | None: The card played, or None if truco was rejected.
+        """
+        while True:
+            action = self._choose_action(player)
+
+            if isinstance(action, int):  # Truco action
+                if action == TRUCO_BID_OFFER_ACTION:
+                    return self._handle_truco_bid(player)
+                elif action == TRUCO_BID_ACCEPT_ACTION:
+                    self.truco_bid_offered = False
+                    # The accepting player doesn't become the bidder
+                    continue  # Player still needs to play a card
+                elif action == TRUCO_BID_REJECT_ACTION:
+                    logger.error("Unexpected truco rejection in player turn")
+                    return None
+            else:  # Card played
+                return action
+
+    def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
+        """Handle a truco bid from a player.
+
+        Args:
+            bidding_player (Player): The player making the truco bid.
+
+        Returns:
+            Card | None: The card played after truco resolution, or None if rejected.
+
+        Raises:
+            TrucoRejectedError: When truco is rejected, indicating the round should end.
+        """
+        other_player = self.player_2 if bidding_player == self.player_1 else self.player_1
+
+        # Store current state and determine what the bid would advance to
+        current_state = self.round_state.truco_state
+        next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
+            current_state, current_state
         )
 
-        if response == "1":
-            new_state = self._advance_truco_state()
-            self.last_truco_bidder = offering_player
+        self.last_truco_bidder = bidding_player
+        logger.info("%s bids %s", bidding_player.name, next_state_name)
+
+        # Other player must respond
+        self.truco_bid_offered = True
+        response = self._choose_action(other_player)
+
+        if response == TRUCO_BID_ACCEPT_ACTION:
+            logger.info("%s accepts truco", other_player.name)
+            # Only now advance the truco state since it was accepted
+            self._advance_truco_state()
+            self.truco_bid_offered = False
+            # Continue with bidding player playing a card
+            return self._handle_player_turn(bidding_player)
+        else:  # TRUCO_BID_REJECT_ACTION
             logger.info(
-                "%s beat truco to %s, accepted by %s",
-                offering_player.name,
-                new_state,
-                other_player.name,
+                "%s rejects truco - round ends, %s wins", other_player.name, bidding_player.name
             )
-            return new_state
-        else:
-            logger.info(
-                "%s rejected truco beat by %s, %s wins the round",
-                other_player.name,
-                offering_player.name,
-                offering_player.name,
-            )
-            return self.round_state.truco_state
+            raise TrucoRejectedError(bidding_player)
+
+    def _determine_round_winner(
+        self, player_1_wins: int, player_2_wins: int, hand_results: list[Player | None]
+    ) -> tuple[int, int]:
+        """Determine the winner when all hands are tied.
+
+        Args:
+            player_1_wins: Number of hands won by player 1.
+            player_2_wins: Number of hands won by player 2.
+            hand_results: List of hand winners (or None for ties).
+
+        Returns:
+            tuple[int, int]: Updated win counts.
+        """
+        if player_1_wins != player_2_wins:
+            return player_1_wins, player_2_wins
+
+        # Find who won the first hand that wasn't tied
+        for result in hand_results:
+            if result is not None:
+                if result == self.player_1:
+                    return HANDS_TO_WIN_ROUND, 0
+                else:
+                    return 0, HANDS_TO_WIN_ROUND
+
+        # All hands were tied - very rare case, player 1 wins by convention
+        logger.info("All hands tied, player 1 wins by convention")
+        return HANDS_TO_WIN_ROUND, 0
 
     def play_round(self) -> tuple[int, int]:
         """Play a round of the game.
 
         This method plays hands until one player wins 2 hands.
         If there's a tie, the first player to win the next hand wins the round.
+        If truco is rejected, the round ends immediately.
 
         Returns:
             tuple[int, int]: The points for each team (team_1_points, team_2_points).
         """
         logger.info("Playing round")
         logger.info("Muestra is: %s", self.muestra)
+
         player_1_wins = 0
         player_2_wins = 0
+        hand_results: list[Player | None] = []
 
-        for _ in range(CARDS_DEALT_PER_PLAYER):
-            hand_result = self.play_hand()
-            player_1_wins += hand_result[0]
-            player_2_wins += hand_result[1]
+        # Player 1 starts the first hand
+        current_starter = self.player_1
 
-            if player_1_wins == HANDS_TO_WIN_ROUND and player_2_wins == HANDS_TO_WIN_ROUND:
-                continue
+        try:
+            for hand_num in range(CARDS_DEALT_PER_PLAYER):
+                logger.info("Playing hand %d, %s starts", hand_num + 1, current_starter.name)
 
-            if HANDS_TO_WIN_ROUND in (player_1_wins, player_2_wins):
-                # if one of the players has won the round, break
-                break
+                hand_winner = self._play_hand(current_starter)
+                hand_results.append(hand_winner)
+
+                if hand_winner == self.player_1:
+                    player_1_wins += 1
+                    current_starter = self.player_1  # Winner starts next hand
+                elif hand_winner == self.player_2:
+                    player_2_wins += 1
+                    current_starter = self.player_2  # Winner starts next hand
+
+                # Check if someone has won the round
+                if HANDS_TO_WIN_ROUND in {player_1_wins, player_2_wins}:
+                    break
+
+            # Handle tie-breaking
+            player_1_wins, player_2_wins = self._determine_round_winner(
+                player_1_wins, player_2_wins, hand_results
+            )
+
+        except TrucoRejectedError as e:
+            # Truco was rejected, round ends immediately
+            logger.info("Round ended due to truco rejection")
+            if e.winning_player == self.player_1:
+                player_1_wins = HANDS_TO_WIN_ROUND
+                player_2_wins = 0
+            else:
+                player_1_wins = 0
+                player_2_wins = HANDS_TO_WIN_ROUND
 
         return self.get_hand_points(player_1_wins, player_2_wins)
-
-    def play_hand(self) -> tuple[int, int]:
-        """Have each player play one card and determine the winner.
-
-        Returns:
-            tuple[int, int]: The points for each team (team_1_points, team_2_points).
-        """
-        card_1 = self._choose_action(self.player_1)
-        if card_1 is None:
-            return 2, 0
-        card_2 = self._choose_action(self.player_2)
-        if card_2 is None:
-            return 0, 2
-
-        logger.debug("Player 1 (%s) played: %s", self.player_1.name, card_1)
-        logger.debug("Player 2 (%s) played: %s", self.player_2.name, card_2)
-
-        if card_1.is_greater_than(card_2, self.muestra):
-            logger.info("%s wins with %s", self.player_1.name, card_1)
-            return 1, 0
-        elif card_2.is_greater_than(card_1, self.muestra):
-            logger.info("%s wins with %s", self.player_2.name, card_2)
-            return 0, 1
-        else:
-            logger.info("It's a tie! Both played equivalent cards")
-            return 1, 1
 
     def get_hand_points(self, player_1_wins: int, player_2_wins: int) -> tuple[int, int]:
         """Get the points for the hand.
