@@ -3,6 +3,11 @@ from logging_config import get_logger
 from models.card import Card
 from models.deck import Deck
 from models.player import Player
+from schemas.actions import (
+    ActionCode,
+    ActionProvider,
+    card_index_from_code,
+)
 from schemas.constants import CARDS_DEALT_PER_PLAYER
 from schemas.hand_info import RoundInfo
 from schemas.player_state import PlayerState
@@ -11,12 +16,6 @@ from schemas.round_state import TRUCO_STATE, RoundState
 logger = get_logger(__name__)
 
 HANDS_TO_WIN_ROUND = CARDS_DEALT_PER_PLAYER // 2 + 1
-
-TRUCO_BID_OFFER_ACTION = 4
-TRUCO_BID_ACCEPT_ACTION = 5
-TRUCO_BID_REJECT_ACTION = 6
-
-TRUCO_ACTIONS = [TRUCO_BID_OFFER_ACTION, TRUCO_BID_ACCEPT_ACTION, TRUCO_BID_REJECT_ACTION]
 
 
 class Round:
@@ -29,12 +28,14 @@ class Round:
         muestra (Card | None): The card shown after dealing that determines the trump suit.
     """
 
-    def __init__(self, player_1: Player, player_2: Player) -> None:
+    def __init__(self, player_1: Player, player_2: Player, action_provider: ActionProvider) -> None:
         """Initialize a round with two players and a fresh deck.
 
         Args:
             player_1 (Player): The player in team 1.
             player_2 (Player): The player in team 2.
+            action_provider (ActionProvider): Callback used to request an action
+                from a player given the current state and available options.
         """
         self.player_1 = player_1
         self.player_2 = player_2
@@ -48,6 +49,7 @@ class Round:
         self.last_truco_bidder: Player | None = None
 
         self.truco_bid_offered: bool = False
+        self._action_provider: ActionProvider = action_provider
 
     def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
@@ -80,62 +82,57 @@ class Round:
         # Only the other player can advance (alternating rule)
         return player != self.last_truco_bidder
 
-    def _show_actions(self, player: Player) -> None:
-        """Show available actions for a player and return the truco option index.
+    def _get_available_actions(self, player: Player) -> list[ActionCode]:
+        """Compute the available actions for a player at this moment.
 
         Args:
-            player (Player): The player to show actions for.
+            player: The player for whom to compute actions.
 
         Returns:
-            int: The index that would be used for the truco beat option.
+            A list of `ActionCode` values that are valid for this turn.
         """
-        if self.truco_bid_offered:
-            logger.info("Truco bid offered, player must accept or reject")
-            logger.info("%s: Accept truco", TRUCO_BID_ACCEPT_ACTION)
-            logger.info("%s: Reject truco", TRUCO_BID_REJECT_ACTION)
-            return
+        actions: list[ActionCode] = []
 
-        # Show cards with their indices
-        for i, card in enumerate(player.cards):
-            logger.info("%s: %s", i, card)
+        # Card play actions: one per card in hand
+        max_playable_card_index = 2
+        for i, _ in enumerate(player.cards):
+            if i == 0:
+                actions.append(ActionCode.PLAY_CARD_0)
+            elif i == 1:
+                actions.append(ActionCode.PLAY_CARD_1)
+            elif i == max_playable_card_index:
+                actions.append(ActionCode.PLAY_CARD_2)
 
+        # Truco escalation (offer) if allowed
         if self._can_beat_truco(player):
-            current_state = self.round_state.truco_state
-            next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
-                current_state, current_state
-            )
-            logger.info("%s: Beat truco to %s", TRUCO_BID_OFFER_ACTION, next_state_name)
+            actions.append(ActionCode.OFFER_TRUCO)
 
-    def _choose_action(self, player: Player) -> Card | int:
-        """Choose an action for the player (play card or truco action).
+        return actions
+
+    def _request_action(self, player: Player, available_actions: list[ActionCode]) -> ActionCode:
+        """Request an action from the external provider and validate it.
 
         Args:
-            player (Player): The player to choose an action for.
+            player: The acting player.
+            available_actions: The valid actions the player can take now.
 
         Returns:
-            Card | int: The card played or the truco action code.
+            The selected valid `ActionCode`.
+
+        Raises:
+            ValueError: If the provider returns an invalid action.
         """
-        self._show_actions(player)
+        player_state = self.get_player_state(player)
+        chosen_action = self._action_provider(player, player_state, available_actions)
 
-        while True:
-            try:
-                choice = int(input(f"Choose action for {player.name}: "))
+        # Validate action selection against available list (by equality)
+        for candidate in available_actions:
+            if candidate == chosen_action:
+                return candidate
 
-                if choice in TRUCO_ACTIONS:
-                    return choice
-
-                # Validate card index
-                if 0 <= choice < len(player.cards):
-                    card = player.play_card(choice)
-                    self.round_state.cards_played_this_round[player] = card
-                    return card
-                else:
-                    logger.warning("Invalid card index. Please choose a valid card.")
-                    continue
-
-            except (ValueError, IndexError):
-                logger.warning("Invalid input. Please enter a number.")
-                continue
+        msg = f"Invalid action selected by provider: {chosen_action}. Valid: {available_actions}"
+        logger.error(msg)
+        raise ValueError(msg)
 
     def _get_points_truco_state(self) -> int:
         """Get the points for the truco state.
@@ -212,21 +209,25 @@ class Round:
         Returns:
             Card | None: The card played, or None if truco was rejected.
         """
-        while True:
-            action = self._choose_action(player)
+        available = self._get_available_actions(player)
+        action = self._request_action(player, available)
 
-            if isinstance(action, int):  # Truco action
-                if action == TRUCO_BID_OFFER_ACTION:
-                    return self._handle_truco_bid(player)
-                elif action == TRUCO_BID_ACCEPT_ACTION:
-                    self.truco_bid_offered = False
-                    # The accepting player doesn't become the bidder
-                    continue  # Player still needs to play a card
-                elif action == TRUCO_BID_REJECT_ACTION:
-                    logger.error("Unexpected truco rejection in player turn")
-                    return None
-            else:  # Card played
-                return action
+        if action == ActionCode.OFFER_TRUCO:
+            return self._handle_truco_bid(player)
+        if action in {ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO}:
+            msg = "Accept/Reject truco is not valid on a regular turn"
+            logger.error(msg)
+            raise ValueError(msg)
+
+        # Play selected card
+        card_index = card_index_from_code(action)
+        if card_index is None:
+            msg = "Play card action code must map to a card index"
+            logger.error(msg)
+            raise ValueError(msg)
+        card = player.play_card(card_index)
+        self.round_state.cards_played_this_round[player] = card
+        return card
 
     def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
         """Handle a truco bid from a player.
@@ -253,20 +254,23 @@ class Round:
 
         # Other player must respond
         self.truco_bid_offered = True
-        response = self._choose_action(other_player)
+        response = self._request_action(
+            other_player,
+            [ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO],
+        )
 
-        if response == TRUCO_BID_ACCEPT_ACTION:
+        if response == ActionCode.ACCEPT_TRUCO:
             logger.info("%s accepts truco", other_player.name)
             # Only now advance the truco state since it was accepted
             self._advance_truco_state()
             self.truco_bid_offered = False
             # Continue with bidding player playing a card
             return self._handle_player_turn(bidding_player)
-        else:  # TRUCO_BID_REJECT_ACTION
-            logger.info(
-                "%s rejects truco - round ends, %s wins", other_player.name, bidding_player.name
-            )
-            raise TrucoRejectedError(bidding_player)
+
+        logger.info(
+            "%s rejects truco - round ends, %s wins", other_player.name, bidding_player.name
+        )
+        raise TrucoRejectedError(bidding_player)
 
     def _determine_round_winner(
         self, player_1_wins: int, player_2_wins: int, hand_results: list[Player | None]
