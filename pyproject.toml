@@ -8,6 +8,9 @@ dependencies = [
     "ipykernel>=6.29.5",
     "pre-commit>=4.2.0",
     "pydantic>=2.11.7",
+    "gymnasium>=0.29.1",
+    "numpy>=1.24.0",
+    "ruff>=0.12.8",
 ]
 
 
