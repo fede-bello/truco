@@ -1,6 +1,9 @@
+from logging_config import get_logger
 from models.player import Player
 from models.round import Round
 from schemas.actions import ActionProvider
+
+logger = get_logger(__name__)
 
 
 class Game:
@@ -34,3 +37,23 @@ class Game:
         team_1_points, team_2_points = game_round.play_round()
         self.team1_score += team_1_points
         self.team2_score += team_2_points
+
+    def play_game(self, target_points: int) -> int:
+        """Play successive rounds until one team reaches the target points.
+
+        Args:
+            target_points: The score threshold required to win the game.
+
+        Returns:
+            The winning team number as an integer (1 or 2).
+        """
+        round_count = 0
+        while max(self.team1_score, self.team2_score) < target_points:
+            round_count += 1
+            self.play_round()
+            logger.info("Round %s completed", round_count)
+            logger.info("Team 1 score: %s", self.team1_score)
+            logger.info("Team 2 score: %s", self.team2_score)
+            logger.info("--------------------------------")
+
+        return 1 if self.team1_score >= target_points else 2

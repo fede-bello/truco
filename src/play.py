@@ -60,14 +60,17 @@ def _cli_action_provider(
 
 
 def play() -> None:
+    """Run a full game loop until a team reaches 40 points."""
     player_1 = Player("Player 1")
     player_2 = Player("Player 2")
     action_provider: ActionProvider = _cli_action_provider
     game = Game(player_1, player_2, action_provider)
-    game.play_round()
 
-    logger.info("Team 1 score: %s", game.team1_score)
-    logger.info("Team 2 score: %s", game.team2_score)
+    winner_team = game.play_game(target_points=40)
+
+    logger.info("Final Team 1 score: %s", game.team1_score)
+    logger.info("Final Team 2 score: %s", game.team2_score)
+    logger.info("Winner: Team %s", winner_team)
 
 
 play()
