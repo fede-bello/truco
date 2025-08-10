@@ -11,7 +11,7 @@ from schemas.actions import (
 from schemas.constants import CARDS_DEALT_PER_PLAYER
 from schemas.hand_info import RoundInfo
 from schemas.player_state import PlayerState
-from schemas.round_state import TRUCO_STATE, RoundState
+from schemas.round_state import TRUCO_STATE, RoundProgress, RoundState
 
 logger = get_logger(__name__)
 
@@ -305,16 +305,52 @@ class Round:
                 else:
                     return 0, HANDS_TO_WIN_ROUND
 
-        # All hands were tied - very rare case, player 1 wins by convention
-        logger.info("All hands tied, player 1 wins by convention")
-        return HANDS_TO_WIN_ROUND, 0
+        # All hands were tied - the hand (starting player) wins
+        logger.info("All hands tied, starting player (hand) wins")
+        if self._starting_player == self.player_1:
+            return HANDS_TO_WIN_ROUND, 0
+        return 0, HANDS_TO_WIN_ROUND
+
+    def _apply_tie_shortcuts(
+        self,
+        *,
+        hand_index: int,
+        first_trick_tied: bool,
+        first_trick_winner: Player | None,
+        current_hand_winner: Player | None,
+    ) -> Player | None:
+        """Apply early-termination tie rules and return the round winner if decided.
+
+        Args:
+            hand_index: Zero-based index of the current trick within the round.
+            first_trick_tied: Whether the first trick was tied.
+            first_trick_winner: Winner of the first trick if any.
+            current_hand_winner: Winner of the current trick if any.
+
+        Returns:
+            The player who should immediately win the round due to tie rules, or None
+            if no early termination applies.
+        """
+        # If first trick was tied, whoever wins the second trick wins the round
+        if hand_index == 1 and first_trick_tied and current_hand_winner is not None:
+            return current_hand_winner
+
+        # If 2nd trick is tied and 1st had a winner, the 1st trick winner wins the round
+        if (
+            hand_index == 1
+            and (not first_trick_tied)
+            and current_hand_winner is None
+            and first_trick_winner is not None
+        ):
+            return first_trick_winner
+
+        return None
 
     def play_round(self) -> tuple[int, int]:
-        """Play a round of the game.
+        """Play a round of the game and return points for each team.
 
-        This method plays hands until one player wins 2 hands.
-        If there's a tie, the first player to win the next hand wins the round.
-        If truco is rejected, the round ends immediately.
+        This method orchestrates the round and delegates per-trick processing and
+        tie-resolution details to helpers.
 
         Returns:
             tuple[int, int]: The points for each team (team_1_points, team_2_points).
@@ -322,47 +358,109 @@ class Round:
         logger.info("Playing round")
         logger.info("Muestra is: %s", self.muestra)
 
-        player_1_wins = 0
-        player_2_wins = 0
-        hand_results: list[Player | None] = []
+        player_1_wins, player_2_wins = self._execute_round()
+        return self.get_hand_points(player_1_wins, player_2_wins)
 
-        current_starter = self._starting_player
+    def _execute_round(self) -> tuple[int, int]:
+        """Play tricks applying tie rules and return raw win counts per player.
+
+        Handles early termination and truco rejection.
+
+        Returns:
+            tuple[int, int]: (player_1_wins, player_2_wins) for this round.
+        """
+        progress = RoundProgress(
+            current_starter=self._starting_player,
+            player_1_wins=0,
+            player_2_wins=0,
+            first_trick_tied=False,
+            first_trick_winner=None,
+        )
+        hand_results: list[Player | None] = []
 
         try:
             for hand_num in range(CARDS_DEALT_PER_PLAYER):
-                logger.info("--------------------------------")
-                logger.info("Playing hand %d, %s starts", hand_num + 1, current_starter.name)
+                progress, early_round_winner, hand_winner = self._play_and_update_one_trick(
+                    hand_index=hand_num,
+                    progress=progress,
+                )
 
-                hand_winner = self._play_hand(current_starter)
                 hand_results.append(hand_winner)
 
-                if hand_winner == self.player_1:
-                    player_1_wins += 1
-                    current_starter = self.player_1  # Winner starts next hand
-                elif hand_winner == self.player_2:
-                    player_2_wins += 1
-                    current_starter = self.player_2  # Winner starts next hand
+                if early_round_winner is not None:
+                    if early_round_winner == self.player_1:
+                        return HANDS_TO_WIN_ROUND, 0
+                    return 0, HANDS_TO_WIN_ROUND
 
-                # Check if someone has won the round
-                if HANDS_TO_WIN_ROUND in {player_1_wins, player_2_wins}:
-                    break
-
-            # Handle tie-breaking
-            player_1_wins, player_2_wins = self._determine_round_winner(
-                player_1_wins, player_2_wins, hand_results
+            # Handle tie-breaking after all tricks (no early termination)
+            return self._determine_round_winner(
+                progress.player_1_wins, progress.player_2_wins, hand_results
             )
 
-        except TrucoRejectedError as e:
+        except TrucoRejectedError as error:
             # Truco was rejected, round ends immediately
             logger.info("Round ended due to truco rejection")
-            if e.winning_player == self.player_1:
-                player_1_wins = HANDS_TO_WIN_ROUND
-                player_2_wins = 0
-            else:
-                player_1_wins = 0
-                player_2_wins = HANDS_TO_WIN_ROUND
+            if error.winning_player == self.player_1:
+                return HANDS_TO_WIN_ROUND, 0
+            return 0, HANDS_TO_WIN_ROUND
 
-        return self.get_hand_points(player_1_wins, player_2_wins)
+    def _play_and_update_one_trick(
+        self,
+        *,
+        hand_index: int,
+        progress: RoundProgress,
+    ) -> tuple[RoundProgress, Player | None, Player | None]:
+        """Play one trick, update state, and apply early termination rules.
+
+        Args:
+            hand_index: Zero-based index of the trick in this round.
+            progress: Container holding the current round progress state,
+                including current starter, win counters and first trick info.
+
+        Returns:
+            A tuple with:
+            - updated player_1_wins
+            - updated player_2_wins
+            - next trick starter
+            - updated first_trick_tied
+            - updated first_trick_winner
+            - early_round_winner if the round should end now, else None
+            - hand_winner for this trick (may be None on tie)
+        """
+        logger.info("--------------------------------")
+        logger.info("Playing hand %d, %s starts", hand_index + 1, progress.current_starter.name)
+
+        hand_winner = self._play_hand(progress.current_starter)
+
+        # Track first trick state for tie logic
+        if hand_index == 0:
+            if hand_winner is None:
+                progress.first_trick_tied = True
+            else:
+                progress.first_trick_winner = hand_winner
+
+        # Update win counters and next starter
+        if hand_winner == self.player_1:
+            progress.player_1_wins += 1
+            progress.current_starter = self.player_1
+        elif hand_winner == self.player_2:
+            progress.player_2_wins += 1
+            progress.current_starter = self.player_2
+
+        # 1) Normal: someone reached 2 wins
+        if HANDS_TO_WIN_ROUND in {progress.player_1_wins, progress.player_2_wins}:
+            if progress.player_1_wins > progress.player_2_wins:
+                return progress, self.player_1, hand_winner
+            return progress, self.player_2, hand_winner
+
+        # 2) Tie-based early termination shortcuts
+        shortcut_winner = self._apply_tie_shortcuts(
+            hand_index=hand_index,
+            first_trick_tied=progress.first_trick_tied,
+            first_trick_winner=progress.first_trick_winner,
+            current_hand_winner=hand_winner,
+        )
+        return progress, shortcut_winner, hand_winner
 
     def get_hand_points(self, player_1_wins: int, player_2_wins: int) -> tuple[int, int]:
         """Get the points for the hand.
