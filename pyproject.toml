@@ -140,6 +140,7 @@ ignore = [
     "COM819", # prohibited trailing comma; conflicts with formatting.
     "ISC001", # single line implicit string concatenation; conflicts with formatting.
     "ISC002", # multi line implicit string concatenation; conflicts with formatting.
+    "S311",   #
 ]
 
 # Exclude a variety of commonly ignored directories.
