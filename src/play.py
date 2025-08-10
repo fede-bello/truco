@@ -45,8 +45,7 @@ def _cli_action_provider(
         The chosen `Action` from the available list.
     """
     _print_available_actions(player.name, player_state, available_actions)
-    valid_codes = {int(code) for code in available_actions}
-    prompt = f"Choose action code for {player.name} (valid: {sorted(valid_codes)}): "
+    prompt = f"Choose action code for {player.name}: "
     while True:
         try:
             choice = int(input(prompt))
@@ -66,7 +65,7 @@ def play() -> None:
     action_provider: ActionProvider = _cli_action_provider
     game = Game(player_1, player_2, action_provider)
 
-    winner_team = game.play_game(target_points=40)
+    winner_team = game.play_game(target_points=10)
 
     logger.info("Final Team 1 score: %s", game.team1_score)
     logger.info("Final Team 2 score: %s", game.team2_score)

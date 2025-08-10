@@ -30,10 +30,19 @@ class Game:
         self.team1_score = 0
         self.team2_score = 0
         self._action_provider = action_provider
+        self._next_round_starting_player: Player = self.player_1
 
     def play_round(self) -> None:
-        """Play a round and update team scores accordingly."""
-        game_round = Round(self.player_1, self.player_2, self._action_provider)
+        """Play a round and update team scores accordingly.
+
+        Alternates the starting player each round.
+        """
+        game_round = Round(
+            self.player_1,
+            self.player_2,
+            self._action_provider,
+            starting_player=self._next_round_starting_player,
+        )
         team_1_points, team_2_points = game_round.play_round()
         self.team1_score += team_1_points
         self.team2_score += team_2_points
@@ -51,6 +60,11 @@ class Game:
         while max(self.team1_score, self.team2_score) < target_points:
             round_count += 1
             self.play_round()
+            self._next_round_starting_player = (
+                self.player_2
+                if self._next_round_starting_player == self.player_1
+                else self.player_1
+            )
             logger.info("Round %s completed", round_count)
             logger.info("Team 1 score: %s", self.team1_score)
             logger.info("Team 2 score: %s", self.team2_score)

@@ -28,7 +28,13 @@ class Round:
         muestra (Card | None): The card shown after dealing that determines the trump suit.
     """
 
-    def __init__(self, player_1: Player, player_2: Player, action_provider: ActionProvider) -> None:
+    def __init__(
+        self,
+        player_1: Player,
+        player_2: Player,
+        action_provider: ActionProvider,
+        starting_player: Player | None = None,
+    ) -> None:
         """Initialize a round with two players and a fresh deck.
 
         Args:
@@ -36,6 +42,8 @@ class Round:
             player_2 (Player): The player in team 2.
             action_provider (ActionProvider): Callback used to request an action
                 from a player given the current state and available options.
+            starting_player (Player | None): The player who starts the first hand
+                in this round. If None, defaults to `player_1`.
         """
         self.player_1 = player_1
         self.player_2 = player_2
@@ -50,6 +58,7 @@ class Round:
 
         self.truco_bid_offered: bool = False
         self._action_provider: ActionProvider = action_provider
+        self._starting_player: Player = starting_player or self.player_1
 
     def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
@@ -317,11 +326,11 @@ class Round:
         player_2_wins = 0
         hand_results: list[Player | None] = []
 
-        # Player 1 starts the first hand
-        current_starter = self.player_1
+        current_starter = self._starting_player
 
         try:
             for hand_num in range(CARDS_DEALT_PER_PLAYER):
+                logger.info("--------------------------------")
                 logger.info("Playing hand %d, %s starts", hand_num + 1, current_starter.name)
 
                 hand_winner = self._play_hand(current_starter)
