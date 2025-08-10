@@ -14,6 +14,8 @@ alwaysApply: true
 - **Python with Typing Always**: Full type hints for all function parameters, return types, and variables where helpful
 - **Google Docstring Standard**: Use Google's docstring format with Args, Returns, Raises sections
 - **Meaningful Comments Only**: Do not include unnecessary comments; only add comments when they provide genuine value for understanding complex logic
+- **dict and list should be used instead of typing.Dict and typing.List**
+- **DO NOT add docstrings at the top of the file**
 
 ### Docstring Format Example
 
