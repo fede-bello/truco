@@ -118,6 +118,17 @@ class Round:
 
         return actions
 
+    def get_available_actions(self, player: Player) -> list[ActionCode]:
+        """Public adapter to retrieve available actions for a player.
+
+        Args:
+            player: The player for whom to compute actions.
+
+        Returns:
+            The list of valid `ActionCode` values.
+        """
+        return self._get_available_actions(player)
+
     def _request_action(self, player: Player, available_actions: list[ActionCode]) -> ActionCode:
         """Request an action from the external provider and validate it.
 
@@ -237,6 +248,14 @@ class Round:
         card = player.play_card(card_index)
         self.round_state.cards_played_this_round[player] = card
         return card
+
+    def set_action_provider(self, action_provider: ActionProvider) -> None:
+        """Set the action provider used to request actions during the round.
+
+        Args:
+            action_provider: Callback compatible with `ActionProvider`.
+        """
+        self._action_provider = action_provider
 
     def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
         """Handle a truco bid from a player.

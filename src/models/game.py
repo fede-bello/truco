@@ -1,9 +1,21 @@
+from typing import Protocol, runtime_checkable
+
 from logging_config import get_logger
 from models.player import Player
 from models.round import Round
 from schemas.actions import ActionProvider
 
 logger = get_logger(__name__)
+
+
+# Runtime-checkable feature detection for providers that can accept a live Round.
+@runtime_checkable
+class SupportsSetRound(Protocol):
+    """Providers that expose a set_round method for richer observations."""
+
+    def set_round(self, round_obj: Round) -> None:
+        """Attach the current Round so the provider can build full observations."""
+        ...
 
 
 class Game:
@@ -43,6 +55,11 @@ class Game:
             self._action_provider,
             starting_player=self._next_round_starting_player,
         )
+        # If the action provider supports richer observations via `set_round`,
+        # attach the live round so agents see muestra and truco state like in training.
+        if isinstance(self._action_provider, SupportsSetRound):
+            self._action_provider.set_round(game_round)
+
         team_1_points, team_2_points = game_round.play_round()
         self.team1_score += team_1_points
         self.team2_score += team_2_points
