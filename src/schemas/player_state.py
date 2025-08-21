@@ -1,5 +1,6 @@
-from models.card import Card
 from pydantic import BaseModel, ConfigDict
+
+from models.card import Card
 from schemas.round_state import RoundState
 
 
