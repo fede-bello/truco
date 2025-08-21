@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TeamInfo(BaseModel):
@@ -6,5 +6,5 @@ class TeamInfo(BaseModel):
 
 
 class RoundInfo(BaseModel):
-    team1: TeamInfo = TeamInfo()
-    team2: TeamInfo = TeamInfo()
+    team1: TeamInfo = Field(default_factory=TeamInfo)
+    team2: TeamInfo = Field(default_factory=TeamInfo)

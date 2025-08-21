@@ -45,11 +45,13 @@ class Player:
             card_index (int): The index of the card to play.
 
         Raises:
-            ValueError: If the card is not in the player's hand.
+            ValueError: If the card index is invalid or there are no cards.
         """
-        # TODO: Check how to properly implement this
         if not self.cards:
             msg = "No cards in hand"
+            raise ValueError(msg)
+        if card_index < 0 or card_index >= len(self.cards):
+            msg = "Invalid card index"
             raise ValueError(msg)
         card = self.cards.pop(card_index)
         self.played_cards.append(card)

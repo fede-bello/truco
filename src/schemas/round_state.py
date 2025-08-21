@@ -8,6 +8,9 @@ from models.player import Player
 
 TRUCO_STATE = Literal["nada", "truco", "retruco", "vale4"]
 
+TRUCO_STATE_TO_INDEX: dict[str, int] = {"nada": 0, "truco": 1, "retruco": 2, "vale4": 3}
+INDEX_TO_TRUCO_STATE: dict[int, str] = {v: k for k, v in TRUCO_STATE_TO_INDEX.items()}
+
 
 class RoundState(BaseModel):
     """Represents the current state of a round in the game.

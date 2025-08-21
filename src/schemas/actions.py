@@ -2,9 +2,9 @@
 
 The mapping is stable and never changes:
 - 0, 1, 2: Play card at index 0, 1, 2 respectively
-- 4: Offer/advance Truco
-- 5: Accept Truco
-- 6: Reject Truco
+- 3: Offer/advance Truco
+- 4: Accept Truco
+- 5: Reject Truco
 """
 
 from collections.abc import Callable
