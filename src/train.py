@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import random
 import statistics
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+import yaml
 
 from agents.monte_carlo_agent import MonteCarloAgent
 from agents.provider import RoundActionProvider
@@ -99,6 +102,9 @@ def train(config: TrainingConfig) -> None:
     agent_cls = MonteCarloAgent if agent_type == "mc_first_visit" else QLearningAgent
     session_dir = agent_cls.create_session_dir()
     agent_path = session_dir / str(config.out)
+
+    with Path(session_dir / "config.yaml").open("w") as f:
+        yaml.dump(config, f)
 
     for episode in range(1, config.episodes + 1):
         trajectory, reward = _play_one_episode(agent, opponent)
