@@ -54,7 +54,14 @@ def example_function(param1: str, param2: int) -> bool:
 
 ### Documentation Requirements
 
-- Module-level docstrings for all Python files
 - Class docstrings explaining purpose and key attributes
-- Method docstrings following Google format
+- Method and function docstrings use Google format
 - Document complex algorithms or business logic with meaningful comments only
+- Do NOT add module-level top-of-file docstrings
+
+### Data Models & Schemas
+
+- Prefer Pydantic `BaseModel` for schemas (e.g., `RoundState`, `PlayerState`, train configs)
+- Use `dataclass` for simple mutable containers (e.g., `RoundProgress`)
+- Use `Literal` for enumerations of card suits, numbers, and truco states
+- Keep action codes as an `IntEnum` and expose helpers like `card_index_from_code`

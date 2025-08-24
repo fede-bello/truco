@@ -87,14 +87,32 @@ This repository is organized around models corresponding to the main entities an
 
 ```plaintext
 src/
+  agents/
+    base_agent.py
+    monte_carlo_agent.py
+    provider.py
+    q_learning_agent.py
+    random_agent.py
+  exceptions/
+    truco_rejected.py
   models/
-    card.py          # Card model with Truco hierarchy
-    deck.py          # Deck logic and card dealing
-    player.py        # Player model with hand management
-    round.py         # Series of hands with team management
-    game.py          # Overall game logic and scoring
+    card.py
+    deck.py
+    game.py
+    player.py
+    round.py
   schemas/
-    hand_info.py     # Data validation schemas (RoundInfo, TeamInfo)
-  constants.py       # Type definitions and game constants
-  play.py           # Main game execution script
+    actions.py
+    constants.py
+    observation.py
+    player_state.py
+    round_state.py
+    train_config.py
+  utils/
+    config_loader.py
+    cli_actions.py
+  evaluate.py
+  play.py
+  play_vs_agent.py
+  train.py
 ```
