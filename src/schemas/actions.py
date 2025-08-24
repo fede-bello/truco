@@ -24,13 +24,13 @@ class ActionCode(IntEnum):
 
 
 def card_index_from_code(code: ActionCode) -> int | None:
-    if code == ActionCode.PLAY_CARD_0:
-        return 0
-    if code == ActionCode.PLAY_CARD_1:
-        return 1
-    if code == ActionCode.PLAY_CARD_2:
-        return 2
-    return None
+    """Map a play-card action code to its hand index, else None."""
+    play_map = {
+        ActionCode.PLAY_CARD_0: 0,
+        ActionCode.PLAY_CARD_1: 1,
+        ActionCode.PLAY_CARD_2: 2,
+    }
+    return play_map.get(code)
 
 
 ActionProvider = Callable[[Player, PlayerState, list[ActionCode]], ActionCode]

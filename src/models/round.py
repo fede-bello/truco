@@ -102,12 +102,14 @@ class Round:
         # Card play actions: one per card in hand
         max_playable_card_index = 2
         for i, _ in enumerate(player.cards):
-            if i == 0:
-                actions.append(ActionCode.PLAY_CARD_0)
-            elif i == 1:
-                actions.append(ActionCode.PLAY_CARD_1)
-            elif i == max_playable_card_index:
-                actions.append(ActionCode.PLAY_CARD_2)
+            mapping = {
+                0: ActionCode.PLAY_CARD_0,
+                1: ActionCode.PLAY_CARD_1,
+                max_playable_card_index: ActionCode.PLAY_CARD_2,
+            }
+            action = mapping.get(i)
+            if action is not None:
+                actions.append(action)
 
         # Truco escalation (offer) if allowed
         if self._can_beat_truco(player):
@@ -188,13 +190,13 @@ class Round:
         if card_1 is None:
             logger.error("Unexpected None card from first player")
             return other_player
-
+        logger.info("%s plays %s", starting_player.name, card_1)
         # Second player plays
         card_2 = self._handle_player_turn(other_player)
         if card_2 is None:
             logger.error("Unexpected None card from second player")
             return starting_player
-
+        logger.info("%s plays %s", other_player.name, card_2)
         # Compare cards to determine winner
         if card_1.is_greater_than(card_2, self.muestra):
             logger.info("%s wins hand with %s vs %s", starting_player.name, card_1, card_2)
