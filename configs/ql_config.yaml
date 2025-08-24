@@ -1,0 +1,16 @@
+episodes: 1000000
+seed: 42
+out: q_agent.json
+agent_type: q_learning
+q_params:
+  alpha: 0.1
+  gamma: 0.99
+epsilon_params:
+  epsilon_start: 1.0
+  epsilon_min: 0.1
+  epsilon_decay: 0.0001
+evaluation:
+  matches: 200
+  target_points: 40
+  seed: 123
+  # output_dir: optional override; defaults to latest session dir
