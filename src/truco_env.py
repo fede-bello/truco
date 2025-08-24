@@ -20,10 +20,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-SUIT_TO_INT = SUIT_TO_INDEX
-TRUCO_TO_INT = TRUCO_STATE_TO_INDEX
-
-
 class TrucoRoundEnv(Env[Observation, int]):
     """Round-level Gym environment for Truco.
 
@@ -182,14 +178,14 @@ class TrucoRoundEnv(Env[Observation, int]):
         suits = [-1, -1, -1]
         for idx, card in enumerate(player_state.player_cards):
             numbers[idx] = int(card.number)
-            suits[idx] = SUIT_TO_INT[card.suit]
+            suits[idx] = SUIT_TO_INDEX[card.suit]
 
         return {
             "hand_numbers": numbers,
             "hand_suits": suits,
-            "truco_state": TRUCO_TO_INT[self._round.round_state.truco_state],
+            "truco_state": TRUCO_STATE_TO_INDEX[self._round.round_state.truco_state],
             "muestra_number": int(self._round.muestra.number),
-            "muestra_suit": SUIT_TO_INT[self._round.muestra.suit],
+            "muestra_suit": SUIT_TO_INDEX[self._round.muestra.suit],
         }
 
     def _get_action_mask(self, player: Player) -> list[int]:
