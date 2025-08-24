@@ -44,11 +44,10 @@ def _play_one_episode(
     provider.reset_trajectory()
     t1_pts, t2_pts = round_obj.play_round()
 
-    reward = 0.0
     if t1_pts > t2_pts:
-        reward = 1.0
+        reward = t1_pts - t2_pts
     elif t2_pts > t1_pts:
-        reward = -1.0
+        reward = t2_pts - t1_pts
     else:
         reward = 0.0
 
