@@ -731,6 +731,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pre-commit" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 
@@ -741,6 +742,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pre-commit", specifier = ">=4.2.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "ruff", specifier = ">=0.12.8" },
 ]
 
