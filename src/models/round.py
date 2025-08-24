@@ -9,7 +9,6 @@ from schemas.actions import (
     card_index_from_code,
 )
 from schemas.constants import CARDS_DEALT_PER_PLAYER
-from schemas.hand_info import RoundInfo
 from schemas.player_state import PlayerState
 from schemas.round_state import TRUCO_STATE, RoundProgress, RoundState
 
@@ -51,12 +50,10 @@ class Round:
 
         self._deal_cards()
         self.muestra: Card
-        self.round_info: RoundInfo = RoundInfo()
 
         self.round_state: RoundState = RoundState(truco_state="nada", cards_played_this_round={})
         self.last_truco_bidder: Player | None = None
 
-        self.truco_bid_offered: bool = False
         self._action_provider: ActionProvider = action_provider
         self._starting_player: Player = starting_player or self.player_1
 
@@ -117,17 +114,6 @@ class Round:
             actions.append(ActionCode.OFFER_TRUCO)
 
         return actions
-
-    def get_available_actions(self, player: Player) -> list[ActionCode]:
-        """Public adapter to retrieve available actions for a player.
-
-        Args:
-            player: The player for whom to compute actions.
-
-        Returns:
-            The list of valid `ActionCode` values.
-        """
-        return self._get_available_actions(player)
 
     def _request_action(self, player: Player, available_actions: list[ActionCode]) -> ActionCode:
         """Request an action from the external provider and validate it.
@@ -249,14 +235,6 @@ class Round:
         self.round_state.cards_played_this_round[player] = card
         return card
 
-    def set_action_provider(self, action_provider: ActionProvider) -> None:
-        """Set the action provider used to request actions during the round.
-
-        Args:
-            action_provider: Callback compatible with `ActionProvider`.
-        """
-        self._action_provider = action_provider
-
     def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
         """Handle a truco bid from a player.
 
@@ -281,7 +259,6 @@ class Round:
         logger.info("%s bids %s", bidding_player.name, next_state_name)
 
         # Other player must respond
-        self.truco_bid_offered = True
         response = self._request_action(
             other_player,
             [ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO],
@@ -291,7 +268,6 @@ class Round:
             logger.info("%s accepts truco", other_player.name)
             # Only now advance the truco state since it was accepted
             self._advance_truco_state()
-            self.truco_bid_offered = False
             # Continue with bidding player playing a card
             return self._handle_player_turn(bidding_player)
 

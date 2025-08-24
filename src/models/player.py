@@ -1,5 +1,4 @@
 from models.card import Card
-from schemas.constants import CARDS_DEALT_PER_PLAYER
 
 
 class Player:
@@ -19,24 +18,6 @@ class Player:
         self.name = name
         self.cards: list[Card] = []
         self.played_cards: list[Card] = []
-
-    def add_card(self, card: Card) -> None:
-        """Add a card to the player's hand.
-
-        Args:
-            card (Card): The card to add to the hand.
-
-        Raises:
-            ValueError: If the player already has 3 cards or if the card is already in hand.
-        """
-        if card not in self.cards:
-            if len(self.cards) >= CARDS_DEALT_PER_PLAYER:
-                msg = f"Player can't have more than {CARDS_DEALT_PER_PLAYER} cards"
-                raise ValueError(msg)
-            self.cards.append(card)
-        else:
-            msg = f"Card {card} already in hand"
-            raise ValueError(msg)
 
     def play_card(self, card_index: int) -> Card:
         """Play a card from the player's hand.

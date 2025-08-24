@@ -92,18 +92,6 @@ class Card:
         """
         return self.get_card_value(muestra) > other.get_card_value(muestra)
 
-    def is_equal_to(self, other: "Card", muestra: "Card") -> bool:
-        """Compare two cards for equality considering the muestra.
-
-        Args:
-            other (Card): The other card to compare against.
-            muestra (Card): The muestra card that determines the trump suit.
-
-        Returns:
-            bool: True if this card is equal to the other card, False otherwise.
-        """
-        return self.get_card_value(muestra) == other.get_card_value(muestra)
-
     def __str__(self) -> str:
         """Return a string representation of the card.
 

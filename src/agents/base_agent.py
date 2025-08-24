@@ -138,7 +138,7 @@ class BaseAgent:
         dst = Path(path)
         dst.parent.mkdir(parents=True, exist_ok=True)
         with dst.open("wb") as f:
-            pickle.dump(self, f)
+            pickle.dump(self, f)  # type: ignore[reportUnknownReturnType]
 
     @classmethod
     def load(cls, path: str) -> Self:
@@ -152,21 +152,11 @@ class BaseAgent:
         """
         src = Path(path)
         with src.open("rb") as f:
-            obj = pickle.load(f)  # noqa: S301
+            obj = pickle.load(f)  # type: ignore[reportUnknownReturnType]
         if not isinstance(obj, cls):
             msg = f"Loaded object is not an instance of {cls.__name__}"
             raise TypeError(msg)
         return obj
-
-    @classmethod
-    def build_artifact_path(cls, session_dir: Path, filename: str) -> Path:
-        """Return the path within the session_dir for this agent class.
-
-        Ensures the subdirectory exists.
-        """
-        subdir = session_dir / cls.OUTPUT_SUBDIR if cls.OUTPUT_SUBDIR else session_dir
-        subdir.mkdir(parents=True, exist_ok=True)
-        return subdir / filename
 
     @classmethod
     def create_session_dir(cls, now: datetime | None = None) -> Path:

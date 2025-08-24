@@ -23,10 +23,6 @@ class ActionCode(IntEnum):
     REJECT_TRUCO = 5
 
 
-def is_play_card(code: ActionCode) -> bool:
-    return code in {ActionCode.PLAY_CARD_0, ActionCode.PLAY_CARD_1, ActionCode.PLAY_CARD_2}
-
-
 def card_index_from_code(code: ActionCode) -> int | None:
     if code == ActionCode.PLAY_CARD_0:
         return 0

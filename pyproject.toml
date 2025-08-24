@@ -143,6 +143,7 @@ ignore = [
     "ISC001", # single line implicit string concatenation; conflicts with formatting.
     "ISC002", # multi line implicit string concatenation; conflicts with formatting.
     "S311",   #
+    "S301"
 ]
 
 # Exclude a variety of commonly ignored directories.

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 AGENT_TYPES = Literal["mc_first_visit", "q_learning"]
 
@@ -41,13 +41,3 @@ class TrainingConfig(BaseModel):
     q_params: QParams | None = None
     epsilon_params: EpsilonParams | None = None
     evaluation: EvaluationConfig | None = None
-
-    @model_validator(mode="after")
-    def _require_params_for_agent(self) -> Self:
-        if self.agent_type == "q_learning" and self.q_params is None:
-            msg = "q_params must be provided for q_learning"
-            raise ValueError(msg)
-        if self.epsilon_params is None:
-            msg = "epsilon_params must be provided"
-            raise ValueError(msg)
-        return self
