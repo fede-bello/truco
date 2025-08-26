@@ -190,22 +190,22 @@ class Round:
         if card_1 is None:
             logger.error("Unexpected None card from first player")
             return other_player
-        logger.info("%s plays %s", starting_player.name, card_1)
+        logger.debug("%s plays %s", starting_player.name, card_1)
         # Second player plays
         card_2 = self._handle_player_turn(other_player)
         if card_2 is None:
             logger.error("Unexpected None card from second player")
             return starting_player
-        logger.info("%s plays %s", other_player.name, card_2)
+        logger.debug("%s plays %s", other_player.name, card_2)
         # Compare cards to determine winner
         if card_1.is_greater_than(card_2, self.muestra):
-            logger.info("%s wins hand with %s vs %s", starting_player.name, card_1, card_2)
+            logger.debug("%s wins hand with %s vs %s", starting_player.name, card_1, card_2)
             return starting_player
         elif card_2.is_greater_than(card_1, self.muestra):
-            logger.info("%s wins hand with %s vs %s", other_player.name, card_2, card_1)
+            logger.debug("%s wins hand with %s vs %s", other_player.name, card_2, card_1)
             return other_player
         else:
-            logger.info("Hand tied with %s vs %s", card_1, card_2)
+            logger.debug("Hand tied with %s vs %s", card_1, card_2)
             return None  # Tie
 
     def _handle_player_turn(self, player: Player) -> Card | None:
@@ -258,7 +258,7 @@ class Round:
         )
 
         self.last_truco_bidder = bidding_player
-        logger.info("%s bids %s", bidding_player.name, next_state_name)
+        logger.debug("%s bids %s", bidding_player.name, next_state_name)
 
         # Other player must respond
         response = self._request_action(
@@ -267,13 +267,13 @@ class Round:
         )
 
         if response == ActionCode.ACCEPT_TRUCO:
-            logger.info("%s accepts truco", other_player.name)
+            logger.debug("%s accepts truco", other_player.name)
             # Only now advance the truco state since it was accepted
             self._advance_truco_state()
             # Continue with bidding player playing a card
             return self._handle_player_turn(bidding_player)
 
-        logger.info(
+        logger.debug(
             "%s rejects truco - round ends, %s wins", other_player.name, bidding_player.name
         )
         raise TrucoRejectedError(bidding_player)
@@ -303,7 +303,7 @@ class Round:
                     return 0, HANDS_TO_WIN_ROUND
 
         # All hands were tied - the hand (starting player) wins
-        logger.info("All hands tied, starting player (hand) wins")
+        logger.debug("All hands tied, starting player (hand) wins")
         if self._starting_player == self.player_1:
             return HANDS_TO_WIN_ROUND, 0
         return 0, HANDS_TO_WIN_ROUND
@@ -352,8 +352,8 @@ class Round:
         Returns:
             tuple[int, int]: The points for each team (team_1_points, team_2_points).
         """
-        logger.info("Playing round")
-        logger.info("Muestra is: %s", self.muestra)
+        logger.debug("Playing round")
+        logger.debug("Muestra is: %s", self.muestra)
 
         player_1_wins, player_2_wins = self._execute_round()
         return self.get_hand_points(player_1_wins, player_2_wins)
@@ -396,7 +396,7 @@ class Round:
 
         except TrucoRejectedError as error:
             # Truco was rejected, round ends immediately
-            logger.info("Round ended due to truco rejection")
+            logger.debug("Round ended due to truco rejection")
             if error.winning_player == self.player_1:
                 return HANDS_TO_WIN_ROUND, 0
             return 0, HANDS_TO_WIN_ROUND
@@ -424,8 +424,8 @@ class Round:
             - early_round_winner if the round should end now, else None
             - hand_winner for this trick (may be None on tie)
         """
-        logger.info("--------------------------------")
-        logger.info("Playing hand %d, %s starts", hand_index + 1, progress.current_starter.name)
+        logger.debug("--------------------------------")
+        logger.debug("Playing hand %d, %s starts", hand_index + 1, progress.current_starter.name)
 
         hand_winner = self._play_hand(progress.current_starter)
 
@@ -468,14 +468,14 @@ class Round:
         truco_points = self._get_points_truco_state()
 
         if player_1_wins > player_2_wins:
-            logger.info("Player 1 wins the round")
+            logger.debug("Player 1 wins the round")
             return truco_points, 0
         elif player_2_wins > player_1_wins:
-            logger.info("Player 2 wins the round")
+            logger.debug("Player 2 wins the round")
             return 0, truco_points
         else:
             # rare case where there are three ties, the "hand" wins
-            logger.info("All tied, the hand wins")
+            logger.debug("All tied, the hand wins")
             return truco_points, 0
 
     def get_player_state(self, player: Player) -> PlayerState:
