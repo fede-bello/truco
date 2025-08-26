@@ -106,22 +106,24 @@ def train(config: TrainingConfig) -> None:
         rewards.append(reward)
         round_wins.append(1 if reward > 0 else 0)
         agent.update(trajectory)
-        rolling_window_size = 2000
+        rolling_window_size = 10000
         if episode % rolling_window_size == 0:
             mean_reward = float(statistics.mean(rewards[-rolling_window_size:]))
             win_rate = sum(round_wins[-rolling_window_size:]) / max(
                 1, len(round_wins[-rolling_window_size:])
             )
+
             rewards_file = session_dir / "rewards.txt"
             if episode == rolling_window_size:
                 rewards_file.write_text("", encoding="utf-8")
             with rewards_file.open("a", encoding="utf-8") as f:
-                f.write(f"{episode} {mean_reward} {win_rate}\n")
+                f.write(f"{episode} {mean_reward} {win_rate} {agent.epsilon()}\n")
             logger.info(
-                "Ep %s | meanR=%.3f | winR=%.2f",
+                "Ep %s | meanR=%.3f | winR=%.2f | eps=%.4f",
                 episode,
                 mean_reward,
                 win_rate,
+                agent.epsilon(),
             )
 
     agent.save(str(agent_path))

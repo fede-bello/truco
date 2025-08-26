@@ -51,10 +51,8 @@ class BaseAgent:
         self.q_values: dict[tuple[str, int], float] = defaultdict(float)
 
     # --- Policy helpers ---------------------------------------------------------
-    def _epsilon(self) -> float:
+    def epsilon(self) -> float:
         """Compute exponentially decayed epsilon for epsilon-greedy."""
-        if self.epsilon_decay <= 0:
-            return max(0.0, min(1.0, self.epsilon_start))
         val = self.epsilon_start * math.exp(-self.epsilon_decay * float(self.episodes_seen))
         return max(self.epsilon_min, val)
 
@@ -99,7 +97,7 @@ class BaseAgent:
         if not valid_actions:
             msg = "valid_actions is empty"
             raise ValueError(msg)
-        if self._rng.random() < self._epsilon():
+        if self._rng.random() < self.epsilon():
             return int(self._rng.choice(list(valid_actions)))
         return self._greedy_action(state_key, valid_actions)
 
