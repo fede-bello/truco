@@ -13,6 +13,7 @@ dependencies = [
     "ruff>=0.12.8",
     "pyyaml>=6.0.2",
     "vulture>=2.14",
+    "pytest>=9.0.2",
 ]
 
 
@@ -35,11 +36,21 @@ reportArgumentType = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "**/tests/**/*.py" = [
-    "S101", # S101 - Checks for uses of the assert keyword. - necessary for testing.
-    "B018", # B018 - Found useless expression - necessary for testing exceptions are raised.
-    "D100", # D100 - Module dostrings not required in test files.
-    "D104", # D104 - Package dostrings not required in test files.
-    "ARG",  # ARG - Unused args are common in tests with mock patches and mock functions.
+    "S101",    # assert
+    "PLR2004", # magic value
+    "T201",    # print
+    "ANN",     # annotations
+    "D",       # docstrings
+    "E501",    # line length
+    "ARG",     # unused args
+    "B018",    # useless expression
+    "PLR0915", # too many statements
+    "B905",    # zip strict
+    "ERA001",  # commented code
+    "EM",      # exception msg
+    "D205",    # blank line docstring
+    "PERF401", # list extend
+    "C901",    # McCabe complexity
 ]
 
 [tool.ruff.lint]
@@ -105,8 +116,6 @@ unfixable = [
 ]
 
 ignore = [
-    "ANN101",  # Don't require type annotations for self.
-    "ANN102",  # Don't require type annotations for cls.
     "D418",    # overload-with-docstring; Overloads should have docstrings when they alter the API/functionality.
     "FIX002",  # Allow TODO tags but no others.
     "TRY003",  # Makes no sense for builtin exceptions.
@@ -174,5 +183,10 @@ exclude = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
