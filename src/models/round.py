@@ -21,32 +21,39 @@ class Round:
     """Represents a round in the card game, which is the play between dealing cards.
 
     Attributes:
-        player_1 (Player): The player in team 1.
-        player_2 (Player): The player in team 2.
+        team1 (list[Player]): The players on team 1.
+        team2 (list[Player]): The players on team 2.
+        ordered_players (list[Player]): The interleaved order of players (A1, B1, A2, B2...).
         deck (Deck): The deck of cards for the round.
         muestra (Card | None): The card shown after dealing that determines the trump suit.
+        show_teammate_cards (bool): Whether players can see their teammate's cards.
     """
 
     def __init__(
         self,
-        player_1: Player,
-        player_2: Player,
+        team1: list[Player],
+        team2: list[Player],
+        ordered_players: list[Player],
         action_provider: ActionProvider,
-        starting_player: Player | None = None,
+        *,
+        starting_player: Player,
+        show_teammate_cards: bool = False,
     ) -> None:
-        """Initialize a round with two players and a fresh deck.
+        """Initialize a round with teams and a fresh deck.
 
         Args:
-            player_1 (Player): The player in team 1.
-            player_2 (Player): The player in team 2.
-            action_provider (ActionProvider): Callback used to request an action
-                from a player given the current state and available options.
-            starting_player (Player | None): The player who starts the first hand
-                in this round. If None, defaults to `player_1`.
+            team1: List of players on team 1.
+            team2: List of players on team 2.
+            ordered_players: Interleaved list of players.
+            action_provider: Callback used to request an action.
+            starting_player: The player who starts the first hand in this round.
+            show_teammate_cards: Whether teammate cards are visible in PlayerState.
         """
-        self.player_1 = player_1
-        self.player_2 = player_2
+        self.team1 = team1
+        self.team2 = team2
+        self.ordered_players = ordered_players
         self.deck = Deck()
+        self.show_teammate_cards = show_teammate_cards
 
         self._deal_cards()
         self.muestra: Card
@@ -55,85 +62,70 @@ class Round:
         self.last_truco_bidder: Player | None = None
 
         self._action_provider: ActionProvider = action_provider
-        self._starting_player: Player = starting_player or self.player_1
+        self._starting_player: Player = starting_player
 
     def _deal_cards(self) -> None:
-        """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card.
-
-        This method draws CARDS_DEALT_PER_PLAYER cards for each player and assigns them directly
-        to the player's hand. After dealing to all players, it draws one card to be the muestra.
-        """
-        for player in [self.player_1, self.player_2]:
+        """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card."""
+        for player in self.ordered_players:
             player.cards = self.deck.draw(CARDS_DEALT_PER_PLAYER)
 
         self.muestra = self.deck.draw(1)[0]
 
+    def _get_teammates(self, player: Player) -> list[Player]:
+        """Get the teammates of a player."""
+        if player in self.team1:
+            return [p for p in self.team1 if p != player]
+        if player in self.team2:
+            return [p for p in self.team2 if p != player]
+        return []
+
+    def _is_same_team(self, player_a: Player, player_b: Player) -> bool:
+        """Check if two players are on the same team."""
+        return (player_a in self.team1 and player_b in self.team1) or (
+            player_a in self.team2 and player_b in self.team2
+        )
+
     def _can_beat_truco(self, player: Player) -> bool:
         """Check if a player can beat (advance) the truco state.
 
-        Args:
-            player (Player): The player who wants to beat truco.
-
-        Returns:
-            bool: True if the player can beat truco, False otherwise.
+        Any player from the opposing team of the last bidder can respond.
+        If no one bid yet, anyone can start.
         """
-        # Cannot advance beyond vale4
         if self.round_state.truco_state == "vale4":
             return False
 
-        # If no one has bid yet, anyone can start
         if self.last_truco_bidder is None:
             return True
 
-        # Only the other player can advance (alternating rule)
-        return player != self.last_truco_bidder
+        # Must be on the opposite team of the last bidder
+        return not self._is_same_team(player, self.last_truco_bidder)
 
     def _get_available_actions(self, player: Player) -> list[ActionCode]:
-        """Compute the available actions for a player at this moment.
-
-        Args:
-            player: The player for whom to compute actions.
-
-        Returns:
-            A list of `ActionCode` values that are valid for this turn.
-        """
+        """Compute the available actions for a player at this moment."""
         actions: list[ActionCode] = []
 
         # Card play actions: one per card in hand
-        max_playable_card_index = 2
+        # Assuming max 3 cards dealt
         for i, _ in enumerate(player.cards):
             mapping = {
                 0: ActionCode.PLAY_CARD_0,
                 1: ActionCode.PLAY_CARD_1,
-                max_playable_card_index: ActionCode.PLAY_CARD_2,
+                2: ActionCode.PLAY_CARD_2,
             }
             action = mapping.get(i)
             if action is not None:
                 actions.append(action)
 
-        # Truco escalation (offer) if allowed
         if self._can_beat_truco(player):
             actions.append(ActionCode.OFFER_TRUCO)
 
         return actions
 
     def _request_action(self, player: Player, available_actions: list[ActionCode]) -> ActionCode:
-        """Request an action from the external provider and validate it.
-
-        Args:
-            player: The acting player.
-            available_actions: The valid actions the player can take now.
-
-        Returns:
-            The selected valid `ActionCode`.
-
-        Raises:
-            ValueError: If the provider returns an invalid action.
-        """
+        """Request an action from the external provider and validate it."""
         player_state = self.get_player_state(player)
         chosen_action = self._action_provider(player, player_state, available_actions)
 
-        # Validate action selection against available list (by equality)
         for candidate in available_actions:
             if candidate == chosen_action:
                 return candidate
@@ -143,7 +135,7 @@ class Round:
         raise ValueError(msg)
 
     def _get_points_truco_state(self) -> int:
-        """Get the points for the truco state.
+        """Get the points for the current truco state.
 
         Returns:
             int: The points for the truco state.
@@ -159,7 +151,11 @@ class Round:
                 return 4
 
     def _advance_truco_state(self) -> TRUCO_STATE:
-        """Advance the truco state."""
+        """Advance the truco state to the next level.
+
+        Returns:
+            TRUCO_STATE: The new enhanced truco state.
+        """
         match self.round_state.truco_state:
             case "nada":
                 self.round_state.truco_state = "truco"
@@ -174,48 +170,80 @@ class Round:
 
         return self.round_state.truco_state
 
-    def _play_hand(self, starting_player: Player) -> Player | None:
-        """Play a single hand between two players.
+    def _get_next_player(self, current_player: Player) -> Player:
+        """Get the next player in the circular order.
 
         Args:
-            starting_player (Player): The player who starts this hand.
+            current_player: The player currently acting.
+
+        Returns:
+            Player: The next player in the interleaved order.
+        """
+        idx = self.ordered_players.index(current_player)
+        return self.ordered_players[(idx + 1) % len(self.ordered_players)]
+
+    def _play_hand(self, starting_player: Player) -> Player | None:
+        """Play a single hand (trick) where each player plays one card.
+
+        Iterates through all players starting from `starting_player` in circular order.
+
+        Args:
+            starting_player: The player who leads the first card of this hand.
 
         Returns:
             Player | None: The player who won the hand, or None if it's a tie.
         """
-        other_player = self.player_2 if starting_player == self.player_1 else self.player_1
+        current_best_card: Card | None = None
+        current_winner: Player | None = None
+        is_tie = False
 
-        # First player plays
-        card_1 = self._handle_player_turn(starting_player)
-        if card_1 is None:
-            logger.error("Unexpected None card from first player")
-            return other_player
-        logger.debug("%s plays %s", starting_player.name, card_1)
-        # Second player plays
-        card_2 = self._handle_player_turn(other_player)
-        if card_2 is None:
-            logger.error("Unexpected None card from second player")
-            return starting_player
-        logger.debug("%s plays %s", other_player.name, card_2)
-        # Compare cards to determine winner
-        if card_1.is_greater_than(card_2, self.muestra):
-            logger.debug("%s wins hand with %s vs %s", starting_player.name, card_1, card_2)
-            return starting_player
-        elif card_2.is_greater_than(card_1, self.muestra):
-            logger.debug("%s wins hand with %s vs %s", other_player.name, card_2, card_1)
-            return other_player
-        else:
-            logger.debug("Hand tied with %s vs %s", card_1, card_2)
-            return None  # Tie
+        # Order for this trick: start with starter, go around
+        start_idx = self.ordered_players.index(starting_player)
+        trick_order = self.ordered_players[start_idx:] + self.ordered_players[:start_idx]
+
+        for player in trick_order:
+            card = self._handle_player_turn(player)
+            if card is None:
+                # Should not happen in normal flow as rejection raises error
+                logger.error("Unexpected None card from %s", player.name)
+                continue
+
+            logger.debug("%s plays %s", player.name, card)
+
+            if current_best_card is None:
+                current_best_card = card
+                current_winner = player
+            elif card.is_greater_than(current_best_card, self.muestra):
+                current_best_card = card
+                current_winner = player
+                is_tie = False
+            elif current_best_card.is_greater_than(card, self.muestra):
+                pass  # Current best stays best
+            else:
+                # Tie with current best
+                is_tie = True
+                # In a tie, we track that it's a tie, but we don't change 'current_winner'
+                # arbitrarily yet. Tie logic is handled by caller or resolved winner is None.
+
+        if is_tie:
+            logger.debug("Hand tied with best card %s", current_best_card)
+            return None
+
+        logger.debug(
+            "Hand winner: %s with %s",
+            current_winner.name if current_winner else "None",
+            current_best_card,
+        )
+        return current_winner
 
     def _handle_player_turn(self, player: Player) -> Card | None:
         """Handle a player's turn, which may include truco bidding.
 
         Args:
-            player (Player): The player whose turn it is.
+            player: The player whose turn it is.
 
         Returns:
-            Card | None: The card played, or None if truco was rejected.
+            Card | None: The card played, or None if a truco challenge was rejected.
         """
         available = self._get_available_actions(player)
         action = self._request_action(player, available)
@@ -240,18 +268,17 @@ class Round:
     def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
         """Handle a truco bid from a player.
 
+        The next player in rotation (who is an opponent) is asked to respond.
+
         Args:
-            bidding_player (Player): The player making the truco bid.
+            bidding_player: The player initiating the truco challenge.
 
         Returns:
             Card | None: The card played after truco resolution, or None if rejected.
 
         Raises:
-            TrucoRejectedError: When truco is rejected, indicating the round should end.
+            TrucoRejectedError: To signal immediate round end on rejection.
         """
-        other_player = self.player_2 if bidding_player == self.player_1 else self.player_1
-
-        # Store current state and determine what the bid would advance to
         current_state = self.round_state.truco_state
         next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
             current_state, current_state
@@ -260,51 +287,74 @@ class Round:
         self.last_truco_bidder = bidding_player
         logger.debug("%s bids %s", bidding_player.name, next_state_name)
 
-        # Other player must respond
+        # In team truco, typically the next player (opponent) responds
+        responder = self._get_next_player(bidding_player)
+
+        # Ensure responder is actually on the other team (sanity check)
+        if self._is_same_team(bidding_player, responder):
+            # This should not happen with alternating order
+            logger.warning("Truco responder is on same team as bidder!")
+
         response = self._request_action(
-            other_player,
+            responder,
             [ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO],
         )
 
         if response == ActionCode.ACCEPT_TRUCO:
-            logger.debug("%s accepts truco", other_player.name)
-            # Only now advance the truco state since it was accepted
+            logger.debug("%s accepts truco", responder.name)
             self._advance_truco_state()
             # Continue with bidding player playing a card
             return self._handle_player_turn(bidding_player)
 
-        logger.debug(
-            "%s rejects truco - round ends, %s wins", other_player.name, bidding_player.name
-        )
+        # Rejection: The bidding team wins the round immediately
         raise TrucoRejectedError(bidding_player)
 
     def _determine_round_winner(
-        self, player_1_wins: int, player_2_wins: int, hand_results: list[Player | None]
+        self, team_1_wins: int, team_2_wins: int, hand_results: list[Player | None]
     ) -> tuple[int, int]:
-        """Determine the winner when all hands are tied.
+        """Determine the winner when win counts are equal after 3 hands.
 
         Args:
-            player_1_wins: Number of hands won by player 1.
-            player_2_wins: Number of hands won by player 2.
-            hand_results: List of hand winners (or None for ties).
+            team_1_wins: Hands won by Team 1.
+            team_2_wins: Hands won by Team 2.
+            hand_results: Sequence of winners for each played hand.
 
         Returns:
-            tuple[int, int]: Updated win counts.
+            tuple[int, int]: Final win counts (forced to win threshold for the victor).
         """
-        if player_1_wins != player_2_wins:
-            return player_1_wins, player_2_wins
+        if team_1_wins > team_2_wins:
+            return HANDS_TO_WIN_ROUND, 0
+        if team_2_wins > team_1_wins:
+            return 0, HANDS_TO_WIN_ROUND
 
-        # Find who won the first hand that wasn't tied
-        for result in hand_results:
-            if result is not None:
-                if result == self.player_1:
-                    return HANDS_TO_WIN_ROUND, 0
-                else:
-                    return 0, HANDS_TO_WIN_ROUND
+        # Tie rules logic if win counts are equal (0-0 or 1-1 with ties)
+        return self._resolve_tied_match(hand_results)
 
-        # All hands were tied - the hand (starting player) wins
-        logger.debug("All hands tied, starting player (hand) wins")
-        if self._starting_player == self.player_1:
+    def _resolve_tied_match(self, hand_results: list[Player | None]) -> tuple[int, int]:
+        """Resolve a match that ended in a tie count based on Truco rules."""
+        first_winner = hand_results[0]
+
+        # Case: 3 ties or 1st tie
+        if first_winner is None:
+            # If all 3 tied, starter of 1st wins
+            if all(r is None for r in hand_results):
+                return self._winner_from_player(self._starting_player)
+
+            # Tie 1st: Winner of 2nd wins (or 3rd if 2nd also tied)
+            for winner in hand_results[1:]:
+                if winner:
+                    return self._winner_from_player(winner)
+
+            # Fallback (should not happen with logic above)
+            return self._winner_from_player(self._starting_player)
+
+        # First not tied, but match ended in tie count (e.g. T1 won 1st, T2 won 2nd, 3rd tied)
+        # First trick winner wins round.
+        return self._winner_from_player(first_winner)
+
+    def _winner_from_player(self, player: Player) -> tuple[int, int]:
+        """Convert a winning player to a team point tuple."""
+        if player in self.team1:
             return HANDS_TO_WIN_ROUND, 0
         return 0, HANDS_TO_WIN_ROUND
 
@@ -316,17 +366,16 @@ class Round:
         first_trick_winner: Player | None,
         current_hand_winner: Player | None,
     ) -> Player | None:
-        """Apply early-termination tie rules and return the round winner if decided.
+        """Apply early-termination tie rules.
 
         Args:
-            hand_index: Zero-based index of the current trick within the round.
-            first_trick_tied: Whether the first trick was tied.
-            first_trick_winner: Winner of the first trick if any.
-            current_hand_winner: Winner of the current trick if any.
+            hand_index: Index of the current hand (0-2).
+            first_trick_tied: Whether the first hand was a tie.
+            first_trick_winner: Winner of the first hand if any.
+            current_hand_winner: Winner of the current hand if any.
 
         Returns:
-            The player who should immediately win the round due to tie rules, or None
-            if no early termination applies.
+            Player | None: A player from the winning team if decided, else None.
         """
         # If first trick was tied, whoever wins the second trick wins the round
         if hand_index == 1 and first_trick_tied and current_hand_winner is not None:
@@ -346,140 +395,133 @@ class Round:
     def play_round(self) -> tuple[int, int]:
         """Play a round of the game and return points for each team.
 
-        This method orchestrates the round and delegates per-trick processing and
-        tie-resolution details to helpers.
-
         Returns:
-            tuple[int, int]: The points for each team (team_1_points, team_2_points).
+            tuple[int, int]: (team_1_points, team_2_points).
         """
-        logger.debug("Playing round")
-        logger.debug("Muestra is: %s", self.muestra)
+        logger.debug(
+            "Playing round w/ teams: %s vs %s",
+            [p.name for p in self.team1],
+            [p.name for p in self.team2],
+        )
+        logger.info("Muestra is: %s", self.muestra)
 
-        player_1_wins, player_2_wins = self._execute_round()
-        return self.get_hand_points(player_1_wins, player_2_wins)
+        team_1_wins, team_2_wins = self._execute_round()
+        return self.get_hand_points(team_1_wins, team_2_wins)
 
     def _execute_round(self) -> tuple[int, int]:
-        """Play tricks applying tie rules and return raw win counts per player.
-
-        Handles early termination and truco rejection.
+        """Execute the trick-by-trick logic for a round.
 
         Returns:
-            tuple[int, int]: (player_1_wins, player_2_wins) for this round.
+            tuple[int, int]: (team_1_wins, team_2_wins) for the round.
         """
         progress = RoundProgress(
             current_starter=self._starting_player,
-            player_1_wins=0,
-            player_2_wins=0,
+            team_1_wins=0,
+            team_2_wins=0,
             first_trick_tied=False,
             first_trick_winner=None,
         )
+
         hand_results: list[Player | None] = []
 
         try:
             for hand_num in range(CARDS_DEALT_PER_PLAYER):
-                progress, early_round_winner, hand_winner = self._play_and_update_one_trick(
-                    hand_index=hand_num,
-                    progress=progress,
-                )
-
+                hand_winner = self._play_hand_step(hand_num, progress)
                 hand_results.append(hand_winner)
 
-                if early_round_winner is not None:
-                    if early_round_winner == self.player_1:
-                        return HANDS_TO_WIN_ROUND, 0
+                # Early exit if a team already won enough tricks
+                if progress.team_1_wins >= HANDS_TO_WIN_ROUND:
+                    return HANDS_TO_WIN_ROUND, 0
+                if progress.team_2_wins >= HANDS_TO_WIN_ROUND:
                     return 0, HANDS_TO_WIN_ROUND
 
-            # Handle tie-breaking after all tricks (no early termination)
+                # Early exit for tie shortcuts (e.g. 1st tie, 2nd winner takes all)
+                shortcut_winner = self._apply_tie_shortcuts(
+                    hand_index=hand_num,
+                    first_trick_tied=progress.first_trick_tied,
+                    first_trick_winner=progress.first_trick_winner,
+                    current_hand_winner=hand_winner,
+                )
+                if shortcut_winner:
+                    return self._winner_from_player(shortcut_winner)
+
             return self._determine_round_winner(
-                progress.player_1_wins, progress.player_2_wins, hand_results
+                progress.team_1_wins, progress.team_2_wins, hand_results
             )
 
         except TrucoRejectedError as error:
-            # Truco was rejected, round ends immediately
             logger.debug("Round ended due to truco rejection")
-            if error.winning_player == self.player_1:
-                return HANDS_TO_WIN_ROUND, 0
-            return 0, HANDS_TO_WIN_ROUND
+            return self._winner_from_player(error.winning_player)
 
-    def _play_and_update_one_trick(
-        self,
-        *,
-        hand_index: int,
-        progress: RoundProgress,
-    ) -> tuple[RoundProgress, Player | None, Player | None]:
-        """Play one trick, update state, and apply early termination rules.
-
-        Args:
-            hand_index: Zero-based index of the trick in this round.
-            progress: Container holding the current round progress state,
-                including current starter, win counters and first trick info.
-
-        Returns:
-            A tuple with:
-            - updated player_1_wins
-            - updated player_2_wins
-            - next trick starter
-            - updated first_trick_tied
-            - updated first_trick_winner
-            - early_round_winner if the round should end now, else None
-            - hand_winner for this trick (may be None on tie)
-        """
+    def _play_hand_step(self, hand_num: int, progress: RoundProgress) -> Player | None:
+        """Play a single hand and update progress."""
         logger.debug("--------------------------------")
-        logger.debug("Playing hand %d, %s starts", hand_index + 1, progress.current_starter.name)
+        logger.debug("Playing hand %d, %s starts", hand_num + 1, progress.current_starter.name)
 
         hand_winner = self._play_hand(progress.current_starter)
 
-        # Track first trick state for tie logic
-        if hand_index == 0:
+        # Track results for first trick
+        if hand_num == 0:
             if hand_winner is None:
                 progress.first_trick_tied = True
             else:
                 progress.first_trick_winner = hand_winner
 
-        # Update win counters and next starter
-        if hand_winner == self.player_1:
-            progress.player_1_wins += 1
-            progress.current_starter = self.player_1
-        elif hand_winner == self.player_2:
-            progress.player_2_wins += 1
-            progress.current_starter = self.player_2
+        # Update starter and scores if there's a winner
+        if hand_winner:
+            progress.current_starter = hand_winner
+            if hand_winner in self.team1:
+                progress.team_1_wins += 1
+            else:
+                progress.team_2_wins += 1
 
-        # 1) Normal: someone reached 2 wins
-        if HANDS_TO_WIN_ROUND in {progress.player_1_wins, progress.player_2_wins}:
-            if progress.player_1_wins > progress.player_2_wins:
-                return progress, self.player_1, hand_winner
-            return progress, self.player_2, hand_winner
+        return hand_winner
 
-        # 2) Tie-based early termination shortcuts
-        shortcut_winner = self._apply_tie_shortcuts(
-            hand_index=hand_index,
-            first_trick_tied=progress.first_trick_tied,
-            first_trick_winner=progress.first_trick_winner,
-            current_hand_winner=hand_winner,
-        )
-        return progress, shortcut_winner, hand_winner
+    def get_hand_points(self, team_1_wins: int, team_2_wins: int) -> tuple[int, int]:
+        """Convert round win counts into game points based on truco state.
 
-    def get_hand_points(self, player_1_wins: int, player_2_wins: int) -> tuple[int, int]:
-        """Get the points for the hand.
+        Args:
+            team_1_wins: Total hands won by Team 1.
+            team_2_wins: Total hands won by Team 2.
 
         Returns:
-            tuple[int, int]: The points for each team (team_1_points, team_2_points).
+            tuple[int, int]: (team_1_points, team_2_points).
         """
         truco_points = self._get_points_truco_state()
 
-        if player_1_wins > player_2_wins:
-            logger.debug("Player 1 wins the round")
+        if team_1_wins > team_2_wins:
+            logger.debug("Team 1 wins the round")
             return truco_points, 0
-        elif player_2_wins > player_1_wins:
-            logger.debug("Player 2 wins the round")
+        elif team_2_wins > team_1_wins:
+            logger.debug("Team 2 wins the round")
             return 0, truco_points
         else:
-            # rare case where there are three ties, the "hand" wins
-            logger.debug("All tied, the hand wins")
-            return truco_points, 0
+            # Fallback for rare full tie
+            logger.debug("All tied, determine by starter logic (Hand wins)")
+            if self._starting_player in self.team1:
+                return truco_points, 0
+            return 0, truco_points
 
     def get_player_state(self, player: Player) -> PlayerState:
-        """Get the state of a player."""
+        """Get the observable state for a specific player.
+
+        Args:
+            player: The player whose perspective to build the state for.
+
+        Returns:
+            PlayerState: A snapshot of the game visible to the player.
+        """
         round_state = self.round_state
         player_cards = player.cards
-        return PlayerState(round_state=round_state, player_cards=player_cards)
+
+        teammate_cards = None
+        if self.show_teammate_cards:
+            teammates = self._get_teammates(player)
+            # Flatten all teammate cards into one list
+            teammate_cards = [card for p in teammates for card in p.cards]
+
+        return PlayerState(
+            round_state=round_state,
+            player_cards=player_cards,
+            teammate_cards=teammate_cards,
+        )

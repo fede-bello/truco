@@ -27,10 +27,14 @@ def _cli_action_provider(
 
 def play(target_points: int = 10) -> None:
     """Run a full game loop with two human players via CLI."""
-    player_1 = Player("Player 1")
-    player_2 = Player("Player 2")
+    player_a1 = Player("Player A1")
+    player_a2 = Player("Player A2")
+    player_b1 = Player("Player B1")
+    player_b2 = Player("Player B2")
+
     action_provider: ActionProvider = _cli_action_provider
-    game = Game(player_1, player_2, action_provider)
+    # Initialize with 2 teams of 2 players each
+    game = Game([player_a1, player_a2], [player_b1, player_b2], action_provider)
 
     winner_team = game.play_game(target_points=target_points)
 

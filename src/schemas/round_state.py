@@ -31,14 +31,14 @@ class RoundProgress:
 
     Attributes:
         current_starter: Player who leads the next trick.
-        player_1_wins: Number of tricks won by player 1 so far.
-        player_2_wins: Number of tricks won by player 2 so far.
+        team_1_wins: Number of tricks won by team 1 so far.
+        team_2_wins: Number of tricks won by team 2 so far.
         first_trick_tied: Whether the first trick resulted in a tie.
         first_trick_winner: Winner of the first trick, if not tied.
     """
 
     current_starter: Player
-    player_1_wins: int
-    player_2_wins: int
+    team_1_wins: int
+    team_2_wins: int
     first_trick_tied: bool
     first_trick_winner: Player | None

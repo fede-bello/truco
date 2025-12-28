@@ -19,41 +19,73 @@ class SupportsSetRound(Protocol):
 
 
 class Game:
-    """Represents a full game session tracking players and scores."""
+    """Represents a full game session tracking players and scores.
 
-    def __init__(self, player_1: Player, player_2: Player, action_provider: ActionProvider) -> None:
-        """Initialize the game with two players and an action provider.
+    Attributes:
+        team1: The players on the first team.
+        team2: The players on the second team.
+        ordered_players: Interleaved turn order (T1P1, T2P1, ...).
+        team1_score: Current game score for Team 1.
+        team2_score: Current game score for Team 2.
+        show_teammate_cards: Whether players can see teammate's hands.
+    """
+
+    def __init__(
+        self,
+        team1: list[Player],
+        team2: list[Player],
+        action_provider: ActionProvider,
+        *,
+        show_teammate_cards: bool = False,
+    ) -> None:
+        """Initialize the game with two teams and an action provider.
 
         Args:
-            player_1: The first player.
-            player_2: The second player.
+            team1: List of players on the first team.
+            team2: List of players on the second team.
             action_provider: Callback used by rounds to obtain player actions.
+            show_teammate_cards: Whether players can see their teammate's cards.
 
         Raises:
-            ValueError: If both references point to the same player.
+            ValueError: If the team structure is invalid.
         """
-        if player_1 == player_2:
-            msg = "Players must be different"
+        if len(team1) != len(team2):
+            msg = "Teams must have equal size"
+            raise ValueError(msg)
+        if not team1:
+            msg = "Teams cannot be empty"
             raise ValueError(msg)
 
-        self.player_1 = player_1
-        self.player_2 = player_2
+        self.team1 = team1
+        self.team2 = team2
+        self._action_provider = action_provider
+        self.show_teammate_cards = show_teammate_cards
+
+        # Flatten players into interleaved order: T1P1, T2P1, T1P2, T2P2...
+        self.ordered_players: list[Player] = []
+        for i in range(len(team1)):
+            self.ordered_players.append(team1[i])
+            self.ordered_players.append(team2[i])
 
         self.team1_score = 0
         self.team2_score = 0
-        self._action_provider = action_provider
-        self._next_round_starting_player: Player = self.player_1
+        self._next_round_starter_index = 0
 
     def play_round(self) -> None:
         """Play a round and update team scores accordingly.
 
-        Alternates the starting player each round.
+        Rotates the starting player each round based on the interleaved order.
         """
+        # Determine the starting player from the ordered list
+        starting_player = self.ordered_players[self._next_round_starter_index]
+
         game_round = Round(
-            self.player_1,
-            self.player_2,
-            self._action_provider,
-            starting_player=self._next_round_starting_player,
+            team1=self.team1,
+            team2=self.team2,
+            ordered_players=self.ordered_players,
+            action_provider=self._action_provider,
+            starting_player=starting_player,
+            show_teammate_cards=self.show_teammate_cards,
         )
         # If the action provider supports richer observations via `set_round`,
         # attach the live round so agents see muestra and truco state like in training.
@@ -77,11 +109,12 @@ class Game:
         while max(self.team1_score, self.team2_score) < target_points:
             round_count += 1
             self.play_round()
-            self._next_round_starting_player = (
-                self.player_2
-                if self._next_round_starting_player == self.player_1
-                else self.player_1
+
+            # Rotate starter for the next round
+            self._next_round_starter_index = (self._next_round_starter_index + 1) % len(
+                self.ordered_players
             )
+
             logger.info("Round %s completed", round_count)
             logger.info("Team 1 score: %s", self.team1_score)
             logger.info("Team 2 score: %s", self.team2_score)

@@ -19,3 +19,4 @@ class PlayerState(BaseModel):
 
     round_state: RoundState
     player_cards: list[Card]
+    teammate_cards: list[Card] | None = None

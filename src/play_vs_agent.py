@@ -65,7 +65,8 @@ def main() -> None:
         agent, human_player_name=human.name, cli_callback=_cli_action_provider
     )
     action_provider: ActionProvider = provider
-    game = Game(human, bot, action_provider)
+    # Initialize with 2 teams [Human], [Agent]
+    game = Game([human], [bot], action_provider)
     winner_team = game.play_game(eval_cfg.target_points)
 
     logger.info("Final Team 1 score: %s", game.team1_score)

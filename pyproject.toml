@@ -114,7 +114,6 @@ ignore = [
     "PERF203", # No try...except in for loop - No clear action to take when this is flagged.
     "RUF013",  # This is a very basic check prone to false positives, let pyright handle it
     "E203",    # Whitespace before ':' - Don't lint for style beyond what black cares about.
-    "PLR6301", # no-self-use - Switching to static has functionality considerations and may not be appropriate.
     "FBT003",  # Boolean positional value in function call - this flags an issue twice and forces per use suppression.
     "SIM108",  # Use ternary; this can be good, but the check is overzealous and suggests changes that involve line breaks.
     "SIM117",  # Use single with; like SIM108 this can be good, but it isn't appropriate in all contexts and could easily result in line breaks.
@@ -143,7 +142,8 @@ ignore = [
     "ISC001", # single line implicit string concatenation; conflicts with formatting.
     "ISC002", # multi line implicit string concatenation; conflicts with formatting.
     "S311",   #
-    "S301"
+    "S301",
+    "PLR0913"
 ]
 
 # Exclude a variety of commonly ignored directories.
