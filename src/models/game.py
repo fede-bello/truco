@@ -96,6 +96,11 @@ class Game:
         self.team1_score += team_1_points
         self.team2_score += team_2_points
 
+        # Rotate starter for the next round
+        self._next_round_starter_index = (self._next_round_starter_index + 1) % len(
+            self.ordered_players
+        )
+
     def play_game(self, target_points: int) -> int:
         """Play successive rounds until one team reaches the target points.
 
@@ -109,11 +114,6 @@ class Game:
         while max(self.team1_score, self.team2_score) < target_points:
             round_count += 1
             self.play_round()
-
-            # Rotate starter for the next round
-            self._next_round_starter_index = (self._next_round_starter_index + 1) % len(
-                self.ordered_players
-            )
 
             logger.info("Round %s completed", round_count)
             logger.info("Team 1 score: %s", self.team1_score)
