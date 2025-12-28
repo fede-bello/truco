@@ -51,6 +51,8 @@ reportArgumentType = true
     "D205",    # blank line docstring
     "PERF401", # list extend
     "C901",    # McCabe complexity
+    "SLF001",  # private member access
+    "PT011",   # pytest.raises
 ]
 
 [tool.ruff.lint]
