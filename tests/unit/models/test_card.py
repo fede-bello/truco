@@ -29,21 +29,21 @@ def test_is_mata():
 def test_is_pieza():
     muestra = Card(10, "oro")
     # Piezas are 2, 4, 5, 11, 10 of muestra suit
-    assert Card(2, "oro")._is_pieza(muestra) is True
-    assert Card(4, "oro")._is_pieza(muestra) is True
-    assert Card(5, "oro")._is_pieza(muestra) is True
-    assert Card(11, "oro")._is_pieza(muestra) is True
-    assert Card(10, "oro")._is_pieza(muestra) is True
+    assert Card(2, "oro").is_pieza(muestra) is True
+    assert Card(4, "oro").is_pieza(muestra) is True
+    assert Card(5, "oro").is_pieza(muestra) is True
+    assert Card(11, "oro").is_pieza(muestra) is True
+    assert Card(10, "oro").is_pieza(muestra) is True
 
-    assert Card(2, "espadas")._is_pieza(muestra) is False
-    assert Card(3, "oro")._is_pieza(muestra) is False
+    assert Card(2, "espadas").is_pieza(muestra) is False
+    assert Card(3, "oro").is_pieza(muestra) is False
 
 
 def test_is_pieza_rey_replacement():
     # If muestra is a pieza (e.g. 2 of ORO), then 12 of ORO becomes a pieza
     muestra = Card(2, "oro")
-    assert Card(12, "oro")._is_pieza(muestra) is True
-    assert Card(2, "oro")._is_pieza(muestra) is True
+    assert Card(12, "oro").is_pieza(muestra) is True
+    assert Card(2, "oro").is_pieza(muestra) is True
 
 
 def test_get_card_value_normal():

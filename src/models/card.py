@@ -31,7 +31,7 @@ class Card:
         self.number = number
         self.suit = suit
 
-    def _is_pieza(self, muestra: "Card") -> bool:
+    def is_pieza(self, muestra: "Card") -> bool:
         """Check if this card is a Pieza (trump suit special card).
 
         Piezas are the 2, 4, 5, Caballo (11), and Sota (10) of the muestra suit.
@@ -69,7 +69,7 @@ class Card:
         Returns:
             int: The value of this card for comparison purposes.
         """
-        if self._is_pieza(muestra):
+        if self.is_pieza(muestra):
             # If the card is 12 and a pieza, then it takes the value of the muestra
             number = self.number if self.number != REY else muestra.number
             return self._PIEZAS[number]
