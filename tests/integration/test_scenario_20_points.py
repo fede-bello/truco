@@ -61,6 +61,7 @@ def test_scenario_20_points():
     god_hand_2 = [SIETE_ORO, TRES_ORO, DOS_ORO]
     trash_hand_1 = [CUATRO_COPA, CINCO_COPA, SEIS_COPA]
     trash_hand_2 = [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO]
+    flor_hand = [AS_ESPADA, SIETE_ESPADA, CUATRO_ESPADA]  # 3 of same suit
     # Muestra neutral
     muestra = [Card(12, "oro")]  # Rey oro
 
@@ -82,6 +83,16 @@ def test_scenario_20_points():
                 list(god_hand_2),
                 list(muestra),
             ]  # A1, B1, A2, B2
+
+    # Function to generate a round deal where A1 has a Flor
+    def make_flor_deal() -> list[list[Card]]:
+        return [
+            list(flor_hand),
+            list(trash_hand_1),
+            list(trash_hand_2),
+            list(god_hand_2),
+            list(muestra),
+        ]  # A1, B1, A2, B2
 
     # Function to generate actions with a specific truco escalation level
     # target_level: 0=None, 1=Truco, 2=Retruco, 3=Vale 4
@@ -163,6 +174,32 @@ def test_scenario_20_points():
 
         return actions
 
+    def make_flor_actions(starter_name: str) -> list[tuple[str, ActionCode]]:
+        # Rotation: B1 -> A2 -> B2 -> A1
+        actions = []
+        actions.append(("B1", ActionCode.PLAY_CARD_0))
+        actions.append(("A2", ActionCode.PLAY_CARD_0))
+        actions.append(("B2", ActionCode.PLAY_CARD_0))
+        # A1 says Flor, then plays card 0
+        actions.append(("A1", ActionCode.FLOR))
+        actions.append(("A1", ActionCode.PLAY_CARD_0))
+        # Second trick (Rotation starts from B1 again if B1 won?
+        # Actually in flor_deal, B1 has trash_hand_1: [4 copa, 5 copa, 6 copa]
+        # A1 has AS_ESPADA (best card).
+        # So A1 wins Trick 1.
+        # Trick 2 starts with A1.
+        actions.append(("A1", ActionCode.PLAY_CARD_1))
+        actions.append(("B1", ActionCode.PLAY_CARD_1))
+        actions.append(("A2", ActionCode.PLAY_CARD_1))
+        actions.append(("B2", ActionCode.PLAY_CARD_1))
+        # Third trick (B2 won trick 2)
+        # B2 starts
+        actions.append(("B2", ActionCode.PLAY_CARD_0))
+        actions.append(("A1", ActionCode.PLAY_CARD_0))
+        actions.append(("B1", ActionCode.PLAY_CARD_0))
+        actions.append(("A2", ActionCode.PLAY_CARD_0))
+        return actions
+
     all_deals = []
     all_actions = []
 
@@ -200,6 +237,10 @@ def test_scenario_20_points():
     for start_name, win_idx, level in scenario:
         all_deals.extend(make_deal(win_idx))
         all_actions.extend(make_actions(start_name, win_idx, level))
+
+    # Add R14 with Flor
+    all_deals.extend(make_flor_deal())
+    all_actions.extend(make_flor_actions("A1"))
 
     MockDeck.set_draw_queue(all_deals)
     action_provider = DeterministicActionProvider(all_actions)
@@ -260,6 +301,11 @@ def test_scenario_20_points():
     # R13: 20-15
     game.play_round()
     assert game.team1_score == 20
+    assert game.team2_score == 15
+
+    # R14: 24-15 (Flor + 1 truco pt)
+    game.play_round()
+    assert game.team1_score == 24
     assert game.team2_score == 15
 
     print("SUCCESS: 20-point varied scenario passed.")

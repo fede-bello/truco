@@ -55,10 +55,15 @@ class Round:
         self.deck = Deck()
         self.show_teammate_cards = show_teammate_cards
 
+        self.round_state: RoundState = RoundState(
+            truco_state="nada",
+            cards_played_this_round={},
+            flor_calls=[],
+            player_initial_hands={},
+        )
         self._deal_cards()
         self.muestra: Card
 
-        self.round_state: RoundState = RoundState(truco_state="nada", cards_played_this_round={})
         self.last_truco_bidder: Player | None = None
 
         self._action_provider: ActionProvider = action_provider
@@ -68,6 +73,8 @@ class Round:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card."""
         for player in self.ordered_players:
             player.cards = self.deck.draw(CARDS_DEALT_PER_PLAYER)
+            # Store initial hand for Flor verification
+            self.round_state.player_initial_hands[player] = list(player.cards)
 
         self.muestra = self.deck.draw(1)[0]
 
@@ -118,6 +125,13 @@ class Round:
 
         if self._can_beat_truco(player):
             actions.append(ActionCode.OFFER_TRUCO)
+
+        # Flor: only available on the first turn of the round
+        if (
+            len(player.cards) == CARDS_DEALT_PER_PLAYER
+            and player not in self.round_state.flor_calls
+        ):
+            actions.append(ActionCode.FLOR)
 
         return actions
 
@@ -250,6 +264,11 @@ class Round:
 
         if action == ActionCode.OFFER_TRUCO:
             return self._handle_truco_bid(player)
+        if action == ActionCode.FLOR:
+            logger.info("%s says FLOR!", player.name)
+            self.round_state.flor_calls.append(player)
+            # After saying Flor, the player must still play a card (or bid truco)
+            return self._handle_player_turn(player)
         if action in {ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO}:
             msg = "Accept/Reject truco is not valid on a regular turn"
             logger.error(msg)
@@ -489,18 +508,38 @@ class Round:
         """
         truco_points = self._get_points_truco_state()
 
+        team_1_points = 0
+        team_2_points = 0
+
         if team_1_wins > team_2_wins:
             logger.debug("Team 1 wins the round")
-            return truco_points, 0
+            team_1_points = truco_points
         elif team_2_wins > team_1_wins:
             logger.debug("Team 2 wins the round")
-            return 0, truco_points
+            team_2_points = truco_points
         else:
             # Fallback for rare full tie
             logger.debug("All tied, determine by starter logic (Hand wins)")
             if self._starting_player in self.team1:
-                return truco_points, 0
-            return 0, truco_points
+                team_1_points = truco_points
+            else:
+                team_2_points = truco_points
+
+        # Calculate Flor points
+        for player in self.round_state.flor_calls:
+            has_real_flor = self._has_flor(self.round_state.player_initial_hands[player])
+            points = 3
+            if player in self.team1:
+                if has_real_flor:
+                    team_1_points += points
+                else:
+                    team_2_points += points
+            elif has_real_flor:
+                team_2_points += points
+            else:
+                team_1_points += points
+
+        return team_1_points, team_2_points
 
     def get_player_state(self, player: Player) -> PlayerState:
         """Get the observable state for a specific player.
@@ -525,3 +564,34 @@ class Round:
             player_cards=player_cards,
             teammate_cards=teammate_cards,
         )
+
+    def _has_flor(self, cards: list[Card]) -> bool:
+        """Check if a list of cards constitutes a Flor.
+
+        A Flor is:
+        - Three cards from the same suit.
+        - One pieza and the other two from the same suit.
+        - Two or more piezas.
+
+        Args:
+            cards: The list of cards to check (usually 3).
+
+        Returns:
+            bool: True if it's a Flor, False otherwise.
+        """
+        if len(cards) != 3:
+            return False
+
+        piezas = [c for c in cards if c.is_pieza(self.muestra)]
+        non_piezas = [c for c in cards if not c.is_pieza(self.muestra)]
+
+        # Two or more piezas
+        if len(piezas) >= 2:
+            return True
+
+        # One pieza and the other two from the same suit
+        if len(piezas) == 1:
+            return non_piezas[0].suit == non_piezas[1].suit
+
+        # Zero piezas and all three from the same suit
+        return cards[0].suit == cards[1].suit == cards[2].suit

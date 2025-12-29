@@ -35,6 +35,8 @@ def print_available_actions(
             logger.info("Action %s: Accept Truco", int(action))
         elif action == ActionCode.REJECT_TRUCO:
             logger.info("Action %s: Reject Truco", int(action))
+        elif action == ActionCode.FLOR:
+            logger.info("Action %s: Say Flor!", int(action))
 
 
 def prompt_action_code(player_name: str, available_actions: list[ActionCode]) -> ActionCode:

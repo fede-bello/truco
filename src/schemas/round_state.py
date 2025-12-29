@@ -17,12 +17,16 @@ class RoundState(BaseModel):
     Attributes:
         truco_state: The current truco bidding state.
         cards_played_this_round: Dictionary mapping player names to cards they've played.
+        flor_calls: List of players who called Flor.
+        player_initial_hands: Dictionary mapping players to their original 3-card hand.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     truco_state: TRUCO_STATE
     cards_played_this_round: dict[Player, Card]
+    flor_calls: list[Player] = []
+    player_initial_hands: dict[Player, list[Card]] = {}
 
 
 @dataclass

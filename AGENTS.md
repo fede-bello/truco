@@ -63,6 +63,17 @@ The hierarchy is determined by the `Card.get_card_value()` method, which conside
 - Players can only raise the bid if they didn't make the last bid (alternating turns).
 - If a player rejects a bid, the other player wins the round with the points accumulated up to the *previous* accepted bid.
 
+### Flor
+- **Condition**: A player has a "Flor" if they have:
+    - Three cards of the same suit.
+    - One **Pieza** and two cards of the same suit.
+    - Two or more **Piezas**.
+- **Points**: 3 points for the team.
+- **Rules**:
+    - Must be called on the player's **first turn** of the round.
+    - Saying "Flor" does not end the turn; the player must still play a card or bid Truco.
+    - **Fake Flor**: If a player calls Flor without having one, the opposing team gets the 3 points at the end of the round.
+
 ---
 
 ## 📂 Repository Structure
@@ -106,6 +117,7 @@ Agents interact with the game using `ActionCode` (IntEnum):
 - `3`: **Offer/Advance**: Raise the Truco bid (Offer Truco/Retruco/Vale 4).
 - `4`: **Accept**: Agree to the current Truco bid.
 - `5`: **Reject**: Fold/Concede the round at the current bid level.
+- `6`: **Flor**: Call Flor (3 points).
 
 ---
 
