@@ -6,6 +6,9 @@ The mapping is stable and never changes:
 - 4: Accept Truco
 - 5: Reject Truco
 - 6: Flor
+- 7: Offer Envido
+- 8: Accept Envido
+- 9: Reject Envido
 """
 
 from collections.abc import Callable
@@ -23,6 +26,9 @@ class ActionCode(IntEnum):
     ACCEPT_TRUCO = 4
     REJECT_TRUCO = 5
     FLOR = 6
+    OFFER_ENVIDO = 7
+    ACCEPT_ENVIDO = 8
+    REJECT_ENVIDO = 9
 
 
 def card_index_from_code(code: ActionCode) -> int | None:

@@ -8,7 +8,7 @@ from schemas.actions import (
     ActionProvider,
     card_index_from_code,
 )
-from schemas.constants import CARDS_DEALT_PER_PLAYER
+from schemas.constants import CARDS_DEALT_PER_PLAYER, REY
 from schemas.player_state import PlayerState
 from schemas.round_state import TRUCO_STATE, RoundProgress, RoundState
 
@@ -132,6 +132,15 @@ class Round:
             and player not in self.round_state.flor_calls
         ):
             actions.append(ActionCode.FLOR)
+
+        # Envido: only available in the first trick, if no Flor has been called
+        # and no Envido has been bid yet.
+        if (
+            len(player.cards) == CARDS_DEALT_PER_PLAYER
+            and not self.round_state.flor_calls
+            and self.round_state.envido_state == "nada"
+        ):
+            actions.append(ActionCode.OFFER_ENVIDO)
 
         return actions
 
@@ -264,6 +273,8 @@ class Round:
 
         if action == ActionCode.OFFER_TRUCO:
             return self._handle_truco_bid(player)
+        if action == ActionCode.OFFER_ENVIDO:
+            return self._handle_envido_bid(player)
         if action == ActionCode.FLOR:
             logger.info("%s says FLOR!", player.name)
             self.round_state.flor_calls.append(player)
@@ -327,6 +338,92 @@ class Round:
 
         # Rejection: The bidding team wins the round immediately
         raise TrucoRejectedError(bidding_player)
+
+    def _handle_envido_bid(self, bidding_player: Player) -> Card | None:
+        """Handle an Envido bid from a player.
+
+        Args:
+            bidding_player: The player initiating the Envido challenge.
+
+        Returns:
+            Card | None: The card played after Envido resolution.
+        """
+        logger.debug("%s bids ENVIDO", bidding_player.name)
+        self.round_state.envido_state = "envido"
+        self.round_state.envido_bidder = bidding_player
+
+        # The next player (opponent) responds
+        responder = self._get_next_player(bidding_player)
+
+        # Response options: Quiero, No Quiero, Flor
+        available_responses = [
+            ActionCode.ACCEPT_ENVIDO,
+            ActionCode.REJECT_ENVIDO,
+        ]
+        # Opponent can respond with Flor if they have one
+        available_responses.append(ActionCode.FLOR)
+
+        response = self._request_action(responder, available_responses)
+
+        if response == ActionCode.FLOR:
+            # Flor overrides Envido (Rule 3)
+            logger.info("%s responds with FLOR to Envido!", responder.name)
+            self.round_state.flor_calls.append(responder)
+            self.round_state.envido_state = "nada"  # Canceled
+            # After saying Flor, the player must still play a card (or bid truco)
+            # But the turn should continue with the bidding_player?
+            # In the original flow, _handle_truco_bid returns _handle_player_turn(bidding_player).
+            # Same here.
+            return self._handle_player_turn(bidding_player)
+
+        if response == ActionCode.ACCEPT_ENVIDO:
+            logger.debug("%s accepts Envido", responder.name)
+            self.round_state.envido_state = "querido"
+            self._resolve_envido_comparison()
+            return self._handle_player_turn(bidding_player)
+
+        # No quiero
+        logger.debug("%s rejects Envido", responder.name)
+        self.round_state.envido_state = "no_quiero"
+        # 1 point for the bidding team
+        team_idx = 1 if bidding_player in self.team1 else 2
+        self.round_state.envido_points[team_idx] += 1
+        return self._handle_player_turn(bidding_player)
+
+    def _resolve_envido_comparison(self) -> None:
+        """Compare Envido values and award 2 points to the winner.
+
+        Players announce values in the same order in which they played their first card.
+        They only announce if necessary (to beat the current highest) or say 'son buenas'.
+        Teammates remain silent if their team already holds the lead.
+        """
+        # Get play order for the first trick
+        start_idx = self.ordered_players.index(self._starting_player)
+        trick_order = self.ordered_players[start_idx:] + self.ordered_players[:start_idx]
+
+        highest_announced_val = -1
+        current_winner = None
+
+        for player in trick_order:
+            if current_winner and self._is_same_team(player, current_winner):
+                # Teammate silent if their team already has the lead
+                continue
+
+            val = self.calculate_envido(self.round_state.player_initial_hands[player])
+
+            # In truco, if values are equal, the one earlier in play order (player)
+            # wins. Since we iterate in trick_order, only '>' changes the winner.
+            if val > highest_announced_val:
+                logger.info("%s has %d", player.name, val)
+                highest_announced_val = val
+                current_winner = player
+            else:
+                logger.info("%s says 'son buenas'", player.name)
+
+        if current_winner:
+            team_idx = 1 if current_winner in self.team1 else 2
+            self.round_state.envido_points[team_idx] += 2
+            logger.info("Team %d wins Envido", team_idx)
 
     def _determine_round_winner(
         self, team_1_wins: int, team_2_wins: int, hand_results: list[Player | None]
@@ -539,6 +636,10 @@ class Round:
             else:
                 team_1_points += points
 
+        # Add Envido points
+        team_1_points += self.round_state.envido_points[1]
+        team_2_points += self.round_state.envido_points[2]
+
         return team_1_points, team_2_points
 
     def get_player_state(self, player: Player) -> PlayerState:
@@ -595,3 +696,82 @@ class Round:
 
         # Zero piezas and all three from the same suit
         return cards[0].suit == cards[1].suit == cards[2].suit
+
+    def calculate_envido(self, cards: list[Card]) -> int:
+        """Calculate the Envido value for a hand of cards.
+
+        Args:
+            cards: The list of cards to calculate Envido for.
+
+        Returns:
+            int: The Envido value.
+        """
+        if not cards:
+            return 0
+
+        piezas = [c for c in cards if c.is_pieza(self.muestra)]
+        # Pieza values for Envido
+        pieza_envido_values = {2: 30, 4: 29, 5: 28, 11: 27, 10: 27}
+
+        if piezas:
+            # Case A: Hand Contains a Pieza
+            # Take the highest pieza value
+            highest_pieza_val = 0
+            for p in piezas:
+                # If it's a 12 (Rey), it takes the value of the pieza it's replacing
+                p_num = p.number if p.number != REY else self.muestra.number
+                highest_pieza_val = max(highest_pieza_val, pieza_envido_values[p_num])
+
+            # Add the highest Envido-value card among the remaining two cards
+            # We need to be careful: if we have multiple piezas, the "remaining" cards
+            # are the ones not used for the 'highest_pieza_val'.
+            # Wait, the rule says "Take the highest pieza value.
+            # Add the highest Envido-value card among the remaining two cards."
+            # This implies if you have 2 piezas, you take the best one,
+            # and then look at the other 2 cards (one of which is ALSO a pieza)
+            # and take the best Envido value from them.
+
+            # Find the card that gave the highest_pieza_val
+            best_pieza = None
+            for p in piezas:
+                p_num = p.number if p.number != REY else self.muestra.number
+                if pieza_envido_values[p_num] == highest_pieza_val:
+                    best_pieza = p
+                    break
+
+            remaining_cards = list(cards)
+            remaining_cards.remove(best_pieza)
+
+            # For the remaining cards, we need their Envido value.
+            # Normal cards use get_envido_value().
+            # Piezas use their pieza_envido_values.
+            # If the remaining is another pieza, does it count as 30/29/etc
+            # or as facial? Usually it's the facial value for the second card.
+            # Let's check Example 2 again. 4 (pieza) is 29. 6 is 6. 29+6=35.
+            # If I had two piezas, say 2 and 4. 2 is 30. 4 is 29.
+            # Usually the second card is its facial value if not used as base.
+
+            max_remaining_val = max(c.get_envido_value() for c in remaining_cards)
+            return highest_pieza_val + max_remaining_val
+
+        # Cases B & C: No Piezas
+        # Group by suit
+        suit_groups: dict[str, list[Card]] = {}
+        for c in cards:
+            suit_groups.setdefault(c.suit, []).append(c)
+
+        max_envido = 0
+        for suit_cards in suit_groups.values():
+            if len(suit_cards) >= 2:
+                # Case C: No Pieza, Two (or three) Cards of the Same Suit
+                # Take the two highest Envido-value cards of the same suit. Add 20 bonus points.
+                vals = sorted([c.get_envido_value() for c in suit_cards], reverse=True)
+                envido_val = vals[0] + vals[1] + 20
+                max_envido = max(max_envido, envido_val)
+            else:
+                # Case B: No Pieza, All Cards Different Suits (or just this one)
+                # Envido = highest single card value.
+                envido_val = suit_cards[0].get_envido_value()
+                max_envido = max(max_envido, envido_val)
+
+        return max_envido

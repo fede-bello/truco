@@ -80,6 +80,19 @@ class Card:
         # Use normal card order for all other cards
         return self._CARD_ORDER[self.number]
 
+    def get_envido_value(self) -> int:
+        """Get the value of this card for Envido calculation.
+
+        1–7: Face value
+        10, 11, 12: 0
+
+        Returns:
+            int: The Envido value of the card.
+        """
+        if self.number >= 10:
+            return 0
+        return self.number
+
     def is_greater_than(self, other: "Card", muestra: "Card") -> bool:
         """Compare two cards considering the muestra.
 

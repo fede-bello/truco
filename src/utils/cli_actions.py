@@ -22,21 +22,23 @@ def print_available_actions(
         actions: Valid actions the player can take.
     """
     logger.info("Available actions for %s:", player_name)
+    action_names = {
+        ActionCode.OFFER_TRUCO: "Offer Truco",
+        ActionCode.ACCEPT_TRUCO: "Accept Truco",
+        ActionCode.REJECT_TRUCO: "Reject Truco",
+        ActionCode.FLOR: "Say Flor!",
+        ActionCode.OFFER_ENVIDO: "Offer Envido",
+        ActionCode.ACCEPT_ENVIDO: "Accept Envido",
+        ActionCode.REJECT_ENVIDO: "Reject Envido",
+    }
     for action in actions:
         card_index = card_index_from_code(action)
         if card_index is not None:
-            if not (0 <= card_index < len(player_cards)):
-                continue
-            card_str = str(player_cards[card_index])
-            logger.info("Action %s: Play %s", int(action), card_str)
-        elif action == ActionCode.OFFER_TRUCO:
-            logger.info("Action %s: Offer Truco", int(action))
-        elif action == ActionCode.ACCEPT_TRUCO:
-            logger.info("Action %s: Accept Truco", int(action))
-        elif action == ActionCode.REJECT_TRUCO:
-            logger.info("Action %s: Reject Truco", int(action))
-        elif action == ActionCode.FLOR:
-            logger.info("Action %s: Say Flor!", int(action))
+            if 0 <= card_index < len(player_cards):
+                card_str = str(player_cards[card_index])
+                logger.info("Action %s: Play %s", int(action), card_str)
+        elif action in action_names:
+            logger.info("Action %s: %s", int(action), action_names[action])
 
 
 def prompt_action_code(player_name: str, available_actions: list[ActionCode]) -> ActionCode:

@@ -7,6 +7,7 @@ from models.card import Card
 from models.player import Player
 
 TRUCO_STATE = Literal["nada", "truco", "retruco", "vale4"]
+ENVIDO_STATE = Literal["nada", "envido", "querido", "no_quiero"]
 
 TRUCO_STATE_TO_INDEX: dict[str, int] = {"nada": 0, "truco": 1, "retruco": 2, "vale4": 3}
 
@@ -24,9 +25,12 @@ class RoundState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     truco_state: TRUCO_STATE
+    envido_state: ENVIDO_STATE = "nada"
     cards_played_this_round: dict[Player, Card]
     flor_calls: list[Player] = []
     player_initial_hands: dict[Player, list[Card]] = {}
+    envido_bidder: Player | None = None
+    envido_points: dict[int, int] = {1: 0, 2: 0}  # Team points from Envido
 
 
 @dataclass
