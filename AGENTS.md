@@ -63,6 +63,102 @@ The hierarchy is determined by the `Card.get_card_value()` method, which conside
 - Players can only raise the bid if they didn't make the last bid (alternating turns).
 - If a player rejects a bid, the other player wins the round with the points accumulated up to the *previous* accepted bid.
 
+### Envido
+Envido is a bidding phase based on card points, occurring only during the first trick.
+
+#### 1. When Envido Can Be Declared
+- Envido is a **call/action**, similar to *Truco*.
+- It can **only be declared during the first trick (round 1)**.
+- Envido **cannot be declared if Flor has already been declared**.
+- If a player has Flor and responds to Envido by saying **"Flor"**, Flor takes priority.
+
+#### 2. Envido Call Resolution
+When a player declares **Envido**, the opposing team must respond with **one** of the following:
+
+- **"No quiero"**: The team that declared Envido **immediately gains 1 point**. The interaction ends.
+- **"Quiero"**: Envido values are compared. The winner gains **2 points**. Players announce values **in the same order in which they played their first card**.
+
+#### 3. Interaction with Flor
+- If Envido is declared and a player responds with **Flor**:
+  - That player’s team gains **3 points**.
+  - The Envido is **canceled (worth 0 points)**.
+- If Flor is declared first:
+  - **No player may declare Envido afterward**.
+
+#### 4. How Envido Values Are Announced
+- Players only announce values **when necessary**.
+- If a player’s Envido value is **lower than the current highest announced value**, the player may say:
+  - **"Son buenas"** (meaning their value is lower).
+- A player **remains silent** if:
+  - Their teammate currently holds the highest Envido value.
+- If an opposing player beats the team’s highest value:
+  - The next teammate must announce their value or say **"son buenas"**.
+
+#### 5. Card Values for Envido Calculation
+
+**Normal Cards**
+| Card | Envido Value |
+|----|----|
+| 1–7 | Face value |
+| 10, 11, 12 | 0 |
+
+**Piezas (Special Cards)**
+| Card | Envido Value |
+|----|----|
+| 2 | 30 |
+| 4 | 29 |
+| 5 | 28 |
+| 11 | 27 |
+| 10 | 27 |
+| 12 (only if it is the muestra) | Assigned pieza value |
+
+#### 6. Computing a Player’s Total Envido
+
+**Step 1: Detect Pieza**
+- A hand **contains a pieza** if at least one card qualifies as a pieza according to the muestra.
+
+**Step 2: Calculate Envido**
+
+- **Case A: Hand Contains a Pieza**
+  - Take the **highest pieza value**.
+  - Add the **highest Envido-value card** among the remaining two cards.
+  - Cards already played **still count**.
+- **Case B: No Pieza, All Cards Different Suits**
+  - Envido = **highest single card value**.
+- **Case C: No Pieza, Two Cards of the Same Suit**
+  - Take the **two highest Envido-value cards of the same suit**.
+  - Add **20 bonus points**.
+
+#### 7. Example Calculations
+
+**Example 1**
+- **Muestra**: 3 of Cups
+- **Hand**: 3♠, 2♣, 1♥
+- No piezas
+- All suits different
+- **Envido = 3**
+
+**Example 2**
+- **Muestra**: 3 of Cups
+- **Hand**: 4♣, 6♠, 1♣
+- 4♣ is a pieza -> 29
+- Highest remaining card = 6
+- **Envido = 35**
+
+**Example 3**
+- **Muestra**: 3 of Cups
+- **Hand**: 5♠, 7♠, 1♥
+- No piezas
+- Two cards same suit
+- **Envido = 32**
+
+#### 8. Priority Rules Summary
+1. Flor overrides Envido.
+2. Envido can only be declared in the first trick.
+3. Responding with Flor cancels Envido.
+4. Envido values are revealed only when required.
+5. "Son buenas" indicates a lower value without revealing it.
+
 ### Flor
 - **Condition**: A player has a "Flor" if they have:
     - Three cards of the same suit.
