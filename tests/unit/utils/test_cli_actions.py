@@ -19,7 +19,7 @@ def test_print_available_actions(mock_logger):
     # Verify specific log calls
     mock_logger.info.assert_any_call("Available actions for %s:", "A1")
     mock_logger.info.assert_any_call("Action %s: Play %s", 0, "1 of espadas")
-    mock_logger.info.assert_any_call("Action %s: Offer Truco", 3)
+    mock_logger.info.assert_any_call("Action %s: %s", 3, "Offer Truco")
 
 
 @patch("utils.cli_actions.input")
