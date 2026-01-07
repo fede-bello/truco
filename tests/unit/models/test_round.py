@@ -132,3 +132,28 @@ def test_play_hand_tie(round_instance, players, mock_action_provider):
 
     winner = round_instance._play_hand(players[0])
     assert winner is None
+
+
+def test_get_team_pie(round_instance, players):
+    # Players: [A1, B1, A2, B2]
+    # Team 1: [A1, A2], Team 2: [B1, B2]
+
+    # Case 1: Starter A1 (Order: A1, B1, A2, B2)
+    round_instance._starting_player = players[0]
+    assert round_instance._get_team_pie(1).name == "A2"
+    assert round_instance._get_team_pie(2).name == "B2"
+
+    # Case 2: Starter B1 (Order: B1, A2, B2, A1)
+    round_instance._starting_player = players[1]
+    assert round_instance._get_team_pie(2).name == "B2"
+    assert round_instance._get_team_pie(1).name == "A1"
+
+    # Case 3: Starter A2 (Order: A2, B2, A1, B1)
+    round_instance._starting_player = players[2]
+    assert round_instance._get_team_pie(1).name == "A1"
+    assert round_instance._get_team_pie(2).name == "B1"
+
+    # Case 4: Starter B2 (Order: B2, A1, B1, A2)
+    round_instance._starting_player = players[3]
+    assert round_instance._get_team_pie(2).name == "B1"
+    assert round_instance._get_team_pie(1).name == "A2"

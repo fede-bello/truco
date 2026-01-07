@@ -58,8 +58,11 @@ class Round:
         self.round_state: RoundState = RoundState(
             truco_state="nada",
             cards_played_this_round={},
+            envido_state="nada",
+            envido_bidder=None,
+            envido_points={1: 0, 2: 0},
             flor_calls=[],
-            player_initial_hands={},
+            player_initial_hands={p: list(p.cards) for p in ordered_players},
         )
         self._deal_cards()
         self.muestra: Card
@@ -68,6 +71,28 @@ class Round:
 
         self._action_provider: ActionProvider = action_provider
         self._starting_player: Player = starting_player
+
+    def _get_team_pie(self, team_idx: int) -> Player:
+        """Find the 'Pie' of a team (the last player of that team in the first round's rotation)."""
+        team = self.team1 if team_idx == 1 else self.team2
+        start_idx = self.ordered_players.index(self._starting_player)
+        trick_order = self.ordered_players[start_idx:] + self.ordered_players[:start_idx]
+
+        for player in reversed(trick_order):
+            if player in team:
+                return player
+        msg = f"Pie not found for team {team_idx}"
+        raise ValueError(msg)
+
+    def _get_opponent_pie(self, player: Player) -> Player:
+        """Find the Pie of the opposing team for a given player."""
+        opposing_team_idx = 2 if player in self.team1 else 1
+        return self._get_team_pie(opposing_team_idx)
+
+    def _get_teammate_pie(self, player: Player) -> Player:
+        """Find the Pie of the same team as the given player."""
+        team_idx = 1 if player in self.team1 else 2
+        return self._get_team_pie(team_idx)
 
     def _deal_cards(self) -> None:
         """Deal CARDS_DEALT_PER_PLAYER cards to each player and set the muestra card."""
@@ -295,49 +320,61 @@ class Round:
         self.round_state.cards_played_this_round[player] = card
         return card
 
-    def _handle_truco_bid(self, bidding_player: Player) -> Card | None:
-        """Handle a truco bid from a player.
+    def _handle_truco_bid(self, original_player: Player) -> Card | None:
+        """Handle a Truco bid chain starting from original_player.
 
-        The next player in rotation (who is an opponent) is asked to respond.
+        All responses and counter-bids (Retruco, Vale 4) are said by the 'Pie'
+        of each team.
 
         Args:
-            bidding_player: The player initiating the truco challenge.
+            original_player: The player whose turn was interrupted by the initial bid.
 
         Returns:
-            Card | None: The card played after truco resolution, or None if rejected.
+            Card | None: The card played after truco resolution.
 
         Raises:
             TrucoRejectedError: To signal immediate round end on rejection.
         """
-        current_state = self.round_state.truco_state
-        next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
-            current_state, current_state
-        )
+        current_bidder = original_player
 
-        self.last_truco_bidder = bidding_player
-        logger.debug("%s bids %s", bidding_player.name, next_state_name)
+        while True:
+            current_state = self.round_state.truco_state
+            next_state_name = {"nada": "truco", "truco": "retruco", "retruco": "vale4"}.get(
+                current_state, current_state
+            )
 
-        # In team truco, typically the next player (opponent) responds
-        responder = self._get_next_player(bidding_player)
+            self.last_truco_bidder = current_bidder
+            logger.debug("%s bids %s", current_bidder.name, next_state_name)
 
-        # Ensure responder is actually on the other team (sanity check)
-        if self._is_same_team(bidding_player, responder):
-            # This should not happen with alternating order
-            logger.warning("Truco responder is on same team as bidder!")
+            # The response is always said by the opposing team's Pie
+            responder = self._get_opponent_pie(current_bidder)
 
-        response = self._request_action(
-            responder,
-            [ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO],
-        )
+            # Response options: Quiero, No Quiero, or counter-bid
+            available_responses = [ActionCode.ACCEPT_TRUCO, ActionCode.REJECT_TRUCO]
 
-        if response == ActionCode.ACCEPT_TRUCO:
-            logger.debug("%s accepts truco", responder.name)
-            self._advance_truco_state()
-            # Continue with bidding player playing a card
-            return self._handle_player_turn(bidding_player)
+            # Pie can counter-bid if not already at the highest level
+            if self.round_state.truco_state != "vale4":
+                available_responses.append(ActionCode.OFFER_TRUCO)
 
-        # Rejection: The bidding team wins the round immediately
-        raise TrucoRejectedError(bidding_player)
+            response = self._request_action(responder, available_responses)
+
+            if response == ActionCode.OFFER_TRUCO:
+                # Responder counter-bids (e.g., "Retruco")
+                self._advance_truco_state()
+                current_bidder = responder
+                # Continue loop to ask the other team's Pie
+                continue
+
+            if response == ActionCode.ACCEPT_TRUCO:
+                logger.debug("%s accepts %s", responder.name, next_state_name)
+                self._advance_truco_state()
+                # Chain over, return to original player's turn
+                break
+
+            # Rejection: The team of the last bidder wins the round immediately
+            raise TrucoRejectedError(current_bidder)
+
+        return self._handle_player_turn(original_player)
 
     def _handle_envido_bid(self, bidding_player: Player) -> Card | None:
         """Handle an Envido bid from a player.
@@ -352,8 +389,8 @@ class Round:
         self.round_state.envido_state = "envido"
         self.round_state.envido_bidder = bidding_player
 
-        # The next player (opponent) responds
-        responder = self._get_next_player(bidding_player)
+        # The response is always said by the opposing team's Pie
+        responder = self._get_opponent_pie(bidding_player)
 
         # Response options: Quiero, No Quiero, Flor
         available_responses = [

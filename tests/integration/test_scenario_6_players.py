@@ -7,7 +7,7 @@ from models.game import Game
 from models.player import Player
 from schemas.actions import ActionCode
 
-# Cards (Power order rough guide: 1E, 1B, 7E, 7O, 3, 2, 1, 12, 11, 10, 7, 6, 5, 4)
+# Cards
 AS_ESPADA = Card(1, "espadas")
 AS_BASTO = Card(1, "basto")
 SIETE_ESPADA = Card(7, "espadas")
@@ -27,11 +27,6 @@ SEIS_BASTO = Card(6, "basto")
 def test_scenario_6_players():
     print("Starting 6-player scenario...")
 
-    # --- Setup ---
-    # Team 1: A1, A2, A3
-    # Team 2: B1, B2, B3
-    # Order: A1, B1, A2, B2, A3, B3
-
     p_a1 = Player("A1")
     p_a2 = Player("A2")
     p_a3 = Player("A3")
@@ -39,97 +34,102 @@ def test_scenario_6_players():
     p_b2 = Player("B2")
     p_b3 = Player("B3")
 
-    # We patch models.round.Deck to be our MockDeck
     patcher = patch("models.round.Deck", side_effect=MockDeck)
     patcher.start()
 
-    # --- Round 1: T1 wins normal (1 pt) ---
-    # Starter: A1
-    # Deal: A1, B1, A2, B2, A3, B3, Muestra
-    r1_deal = [
-        [AS_ESPADA, AS_BASTO, TRES_ORO],  # A1
-        [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B1
-        [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A2
-        [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B2
-        [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A3
-        [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B3
-        [Card(10, "oro")],  # Muestra
-    ]
+    try:
+        # --- Round 1: T1 wins normal (1 pt) ---
+        # Starter: A1.
+        # Deal order (Fixed): A1, B1, A2, B2, A3, B3, Muestra
+        r1_deal = [
+            [AS_ESPADA, AS_BASTO, TRES_ORO],  # A1
+            [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B1
+            [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A2
+            [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B2
+            [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A3
+            [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B3
+            [Card(10, "oro")],  # Muestra
+        ]
 
-    r1_actions = [
-        ("A1", ActionCode.PLAY_CARD_0),  # As Espada
-        ("B1", ActionCode.PLAY_CARD_0),
-        ("A2", ActionCode.PLAY_CARD_0),
-        ("B2", ActionCode.PLAY_CARD_0),
-        ("A3", ActionCode.PLAY_CARD_0),
-        ("B3", ActionCode.PLAY_CARD_0),
-        # Hand 1 done, A1 won.
-        ("A1", ActionCode.PLAY_CARD_1),  # As Basto
-        ("B1", ActionCode.PLAY_CARD_1),
-        ("A2", ActionCode.PLAY_CARD_1),
-        ("B2", ActionCode.PLAY_CARD_1),
-        ("A3", ActionCode.PLAY_CARD_1),
-        ("B3", ActionCode.PLAY_CARD_1),
-        # Hand 2 done, A1 won. Round done.
-    ]
+        r1_actions = [
+            ("A1", ActionCode.PLAY_CARD_0),  # As Espada
+            ("B1", ActionCode.PLAY_CARD_0),
+            ("A2", ActionCode.PLAY_CARD_0),
+            ("B2", ActionCode.PLAY_CARD_0),
+            ("A3", ActionCode.PLAY_CARD_0),
+            ("B3", ActionCode.PLAY_CARD_0),
+            # Hand 1 done, A1 won.
+            ("A1", ActionCode.PLAY_CARD_1),  # As Basto
+            ("B1", ActionCode.PLAY_CARD_1),
+            ("A2", ActionCode.PLAY_CARD_1),
+            ("B2", ActionCode.PLAY_CARD_1),
+            ("A3", ActionCode.PLAY_CARD_1),
+            ("B3", ActionCode.PLAY_CARD_1),
+            # Hand 2 done, A1 won. Round done.
+        ]
 
-    # --- Round 2: T2 wins with Truco (2 pts) ---
-    # Starter: B1 (Rotated)
-    r2_deal = [
-        [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A1
-        [AS_ESPADA, AS_BASTO, TRES_ORO],  # B1
-        [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A2
-        [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B2
-        [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A3
-        [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B3
-        [Card(11, "oro")],  # Muestra
-    ]
-    r2_actions = [
-        ("B1", ActionCode.OFFER_TRUCO),
-        ("A2", ActionCode.ACCEPT_TRUCO),  # Next to B1 is A2
-        ("B1", ActionCode.PLAY_CARD_0),  # As Espada
-        ("A2", ActionCode.PLAY_CARD_0),
-        ("B2", ActionCode.PLAY_CARD_0),
-        ("A3", ActionCode.PLAY_CARD_0),
-        ("B3", ActionCode.PLAY_CARD_0),
-        ("A1", ActionCode.PLAY_CARD_0),
-        # Hand 1 winner B1
-        ("B1", ActionCode.PLAY_CARD_1),  # As Basto
-        ("A2", ActionCode.PLAY_CARD_1),
-        ("B2", ActionCode.PLAY_CARD_1),
-        ("A3", ActionCode.PLAY_CARD_1),
-        ("B3", ActionCode.PLAY_CARD_1),
-        ("A1", ActionCode.PLAY_CARD_1),
-        # Hand 2 winner B1. Round winner T2.
-    ]
+        # --- Round 2: T2 wins with Truco (2 pts) ---
+        # Starter: B1 (Rotated)
+        # Pie T1: A1. Pie T2: B3.
+        r2_deal = [
+            [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A1
+            [AS_ESPADA, AS_BASTO, TRES_ORO],  # B1
+            [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A2
+            [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B2
+            [CUATRO_BASTO, CINCO_BASTO, SEIS_BASTO],  # A3
+            [CUATRO_COPA, CINCO_COPA, SEIS_COPA],  # B3
+            [Card(11, "oro")],  # Muestra
+        ]
+        r2_actions = [
+            ("B1", ActionCode.OFFER_TRUCO),
+            ("A1", ActionCode.ACCEPT_TRUCO),  # Pie T1 (A1) accepts. Was A2.
+            ("B1", ActionCode.PLAY_CARD_0),  # As Espada
+            ("A2", ActionCode.PLAY_CARD_0),
+            ("B2", ActionCode.PLAY_CARD_0),
+            ("A3", ActionCode.PLAY_CARD_0),
+            ("B3", ActionCode.PLAY_CARD_0),
+            ("A1", ActionCode.PLAY_CARD_0),
+            # Hand 1 winner B1
+            ("B1", ActionCode.PLAY_CARD_1),  # As Basto
+            ("A2", ActionCode.PLAY_CARD_1),
+            ("B2", ActionCode.PLAY_CARD_1),
+            ("A3", ActionCode.PLAY_CARD_1),
+            ("B3", ActionCode.PLAY_CARD_1),
+            ("A1", ActionCode.PLAY_CARD_1),
+            # Hand 2 winner B1. Round winner T2.
+        ]
 
-    # Configure Deck and Action Provider
-    all_deals = [r1_deal, r2_deal]
-    deck_queue = []
-    for r_deal in all_deals:
-        deck_queue.extend(r_deal)
+        # Configure Deck and Action Provider
+        all_deals = [r1_deal, r2_deal]
+        deck_queue = []
+        for r_deal in all_deals:
+            deck_queue.extend(r_deal)
 
-    MockDeck.set_draw_queue(deck_queue)
+        MockDeck.set_draw_queue(deck_queue)
 
-    all_actions = r1_actions + r2_actions
-    action_provider = DeterministicActionProvider(all_actions)
+        all_actions = r1_actions + r2_actions
+        action_provider = DeterministicActionProvider(all_actions)
 
-    # Game Init
-    game = Game([p_a1, p_a2, p_a3], [p_b1, p_b2, p_b3], action_provider)
+        # Game Init
+        game = Game([p_a1, p_a2, p_a3], [p_b1, p_b2, p_b3], action_provider)
 
-    # --- Execution & Assertions ---
+        # Round 1
+        print("Playing Round 1...")
+        game.play_round()
+        assert game.team1_score == 1
+        assert game.team2_score == 0
 
-    # Round 1
-    print("Playing Round 1...")
-    game.play_round()
-    assert game.team1_score == 1, f"R1: Expected T1=1, got {game.team1_score}"
-    assert game.team2_score == 0, f"R1: Expected T2=0, got {game.team2_score}"
+        # Round 2
+        print("Playing Round 2...")
+        game.play_round()
+        assert game.team1_score == 1
+        assert game.team2_score == 2
 
-    # Round 2
-    print("Playing Round 2...")
-    game.play_round()
-    assert game.team1_score == 1, f"R2: T1 should be 1, got {game.team1_score}"
-    assert game.team2_score == 2, f"R2: T2 should be 2, got {game.team2_score}"
+        print("SUCCESS: 6-player scenario passed.")
 
-    print("SUCCESS: 6-player scenario passed.")
-    patcher.stop()
+    finally:
+        patcher.stop()
+
+
+if __name__ == "__main__":
+    test_scenario_6_players()
